@@ -2,18 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import warnings
 
 import transformers
 from pytorch_lightning import LightningDataModule, LightningModule
-from pytorch_lightning.utilities.seed import seed_everything
-
 from src.lit_cli import LitCLI
 
 transformers.logging.set_verbosity_error()
-
-warnings.simplefilter("ignore")
-seed_everything(42, workers=True)
 
 
 def main():
@@ -25,6 +19,7 @@ def main():
             "default_root_dir": "results",
             "checkpoint_callback": False,
         },
+        seed_everything_default=42,
         shared_attrs=["collate_fn", "transforms"],
         save_config_overwrite=True,
         subclass_mode_model=True,
