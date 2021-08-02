@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import functools
 import os
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Type, Union, Callable, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
