@@ -10,7 +10,6 @@ import shutil
 import sys
 import zlib
 from collections import Counter, OrderedDict
-from copy import deepcopy
 from difflib import SequenceMatcher
 from logging.config import dictConfig
 from pathlib import Path
@@ -48,7 +47,7 @@ LOGGING_CONFIG = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": "debug.log",
+            "filename": "logs/debug.log",
             "mode": "w",
             "formatter": "verbose",
             "level": int(os.getenv("LOGLEVEL", logging.DEBUG)),
@@ -256,7 +255,6 @@ class ImageCrawler:
             self._logger.debug(el.get("src", ""))
 
             node = el
-
             for _ in range(2):
                 for attr in ["title", "alt"]:
                     text = node.get(attr, "")
@@ -389,7 +387,7 @@ def main():
 
             logger.info("")
     else:
-        LOGGING_CONFIG["handlers"]["file"]["filename"] = "tmp.log"
+        LOGGING_CONFIG["handlers"]["file"]["filename"] = "logs/tmp.log"
         dictConfig(LOGGING_CONFIG)
         image_crawler = ImageCrawler()
 
