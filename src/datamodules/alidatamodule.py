@@ -3,7 +3,6 @@
 
 import json
 import linecache
-import random
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
@@ -11,7 +10,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, SubsetRandomSampler
+from torch.utils.data import DataLoader, Dataset
 
 from .build_dataset import build_dataset
 from .utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, train_test_split
