@@ -19,7 +19,7 @@ def main():
             "default_root_dir": "results",
             "checkpoint_callback": False,
         },
-        seed_everything_default=42,
+        seed_everything_default=123,
         shared_attrs=["collate_fn", "transforms"],
         save_config_overwrite=True,
         subclass_mode_model=True,
