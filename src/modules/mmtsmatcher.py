@@ -3,8 +3,8 @@
 
 import json
 from functools import partial
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
