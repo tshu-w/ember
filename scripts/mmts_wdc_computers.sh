@@ -80,24 +80,24 @@ export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 comput
 ###############################################################################
 #                                    xlarge                                   #
 ###############################################################################
-./run.py \
- --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": False, "cate": "computers", "training_size": "xlarge"}}' \
- --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
- --trainer.gpus 2,
+# ./run.py \
+#  --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": False, "cate": "computers", "training_size": "xlarge"}}' \
+#  --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
+#  --trainer.gpus 2,
 
-./run.py \
- --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": True, "cate": "computers", "training_size": "xlarge"}}' \
- --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
- --trainer.gpus 2,
+# ./run.py \
+#  --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": True, "cate": "computers", "training_size": "xlarge"}}' \
+#  --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
+#  --trainer.gpus 2,
 
-./run.py \
- --seed_everything 42 \
- --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": False, "cate": "computers", "training_size": "xlarge"}}' \
- --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
- --trainer.gpus 2,
+# ./run.py \
+#  --seed_everything 42 \
+#  --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": False, "cate": "computers", "training_size": "xlarge"}}' \
+#  --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
+#  --trainer.gpus 2,
 
-./run.py \
- --seed_everything 42 \
- --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": True, "cate": "computers", "training_size": "xlarge"}}' \
- --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
- --trainer.gpus 2,
+# ./run.py \
+#  --seed_everything 42 \
+#  --data '{"class_path": "src.WDCDataModule", "init_args": {"use_image": True, "cate": "computers", "training_size": "xlarge"}}' \
+#  --model '{"class_path": "src.MMTSMatcher", "init_args": {"model_name": "bert-base-uncased", "max_length": 128}}' \
+#  --trainer.gpus 2,
