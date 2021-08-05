@@ -164,7 +164,7 @@ class MMTSMatcher(LightningModule):
             preds = probs.argmax(dim=-1)
             errors = torch.nonzero(torch.ne(preds, labels))
             error_cases = [
-                json.dumps(row[i], ensure_ascii=False, indent=2, cls=NumpyEncoder)
+                json.dumps(row[i], ensure_ascii=False, indent=2, cls=NumpyEncoder) + "\n"
                 for i in errors.squeeze(dim=-1).tolist()
             ]
             errors_cases_file = (
