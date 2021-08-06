@@ -164,13 +164,11 @@ class MMTSMatcher(LightningModule):
             preds = probs.argmax(dim=-1)
             errors = torch.nonzero(torch.ne(preds, labels))
             error_cases = [
-                json.dumps(row[i], ensure_ascii=False, indent=2, cls=NumpyEncoder) + "\n"
+                json.dumps(row[i], ensure_ascii=False, indent=2, cls=NumpyEncoder)
+                + "\n"
                 for i in errors.squeeze(dim=-1).tolist()
             ]
-            errors_cases_file = (
-                Path(self.trainer.log_dir or self.trainer.default_root_dir)
-                / f"error_cases_{step}.json"
-            )
+            errors_cases_file = Path(self.trainer.log_dir) / f"error_cases_{step}.json"
             with errors_cases_file.open("a") as f:
                 f.writelines(error_cases)
 
