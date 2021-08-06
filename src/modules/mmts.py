@@ -36,7 +36,7 @@ class ModalEmbeddings(nn.Module):
 
         if len(input_modals.size()) == 4:
             input_modals.unsqueeze_(1)
-        assert input_modals.size(1) <= 2
+        assert input_modals.size(1) <= 2, "only one or two images are supported"
 
         for i in range(input_modals.size(1)):
             token_embedding = self.proj_embeddings(self.encoder(input_modals[:, i]))
