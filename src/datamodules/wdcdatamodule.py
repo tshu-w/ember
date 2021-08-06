@@ -5,6 +5,7 @@ import warnings
 from pathlib import Path
 from typing import Callable, Dict, List, Literal, Optional, Union
 
+import torch
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -49,12 +50,13 @@ class WDCDataset(Dataset):
                         warnings.simplefilter("ignore")
                         image = Image.open(image_paths[0]).convert("RGB")
 
+                    image = self.transforms(image)
                 else:
                     image = Image.fromarray(
                         255 * np.ones((256, 256, 3), dtype=np.uint8)
                     )
+                    image = torch.zeros_like(self.transforms(image))
 
-                image = self.transforms(image)
                 res["images"].append(image)
 
         return res
