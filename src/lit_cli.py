@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
 import os
+import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
+from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from rich import print
 
@@ -60,7 +64,8 @@ class LitCLI(LightningCLI):
                 if hasattr(self.datamodule, attr) and not hasattr(self.model, attr):
                     setattr(self.model, attr, getattr(self.datamodule, attr))
 
-        # change the name (and version) of the logger based on the modules' name and version
+        # change the name (and version) of the logger based on the modules' name and
+        # version
         exp_name = type(self.model).__name__
         exp_name += "_" + (type(self.datamodule).__name__ if self.datamodule else "")
 
@@ -71,25 +76,21 @@ class LitCLI(LightningCLI):
         if hasattr(self.model, "version"):
             version += "_" + self.model.version
 
+        if version:
+            timestramp = datetime.now().strftime("%m%d-%H%M%S")
+            version += "_" + timestramp
+
         print(f"Experiment Name: [bold]{exp_name}[/bold]")
         print(f"Version: [bold]{version}[/bold]")
 
-        if isinstance(self.trainer.logger, Iterable):
-            loggers = self.trainer.logger
-        else:
-            loggers = [self.trainer.logger]
-
-        for logger in loggers:
-            if hasattr(logger, "_name"):
-                logger._name = exp_name.lower()
+        if not isinstance(self.trainer.logger, LoggerCollection):
+            self.trainer.logger._name = exp_name.lower()
             if (
-                hasattr(logger, "_version")
+                hasattr(self.trainer.logger, "_version")
                 and version
                 and not os.getenv("PL_EXP_VERSION")
             ):
-                timestramp = datetime.now().strftime("%m%d-%H%M%S")
-                version += "_" + timestramp
-                logger._version = version.lower()
+                self.trainer.logger._version = version.lower()
 
         if (
             self.config["trainer"]["auto_lr_find"]
@@ -99,4 +100,28 @@ class LitCLI(LightningCLI):
 
     def after_fit(self):
         if self.trainer.checkpoint_callback.best_model_path:
-            self.trainer.test()
+            # HACK: https://github.com/PyTorchLightning/pytorch-lightning/discussions/8759
+            ckpt_path = self.trainer.checkpoint_callback.best_model_path
+
+            # Disable useless logger after fit
+            logging.getLogger("pytorch_lightning.utilities.distributed").setLevel(
+                logging.WARNING
+            )
+            logging.getLogger("pytorch_lightning.accelerators.gpu").setLevel(
+                logging.WARNING
+            )
+
+            val_results = self.trainer.validate(ckpt_path=ckpt_path, verbose=False)
+            test_results = self.trainer.test(ckpt_path=ckpt_path, verbose=False)
+
+            results = [
+                {**val_result, **test_result}
+                for val_result, test_result in zip(val_results, test_results)
+            ]
+            results = results[0] if len(results) == 1 else results
+
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+
+            metrics = Path(self.trainer.log_dir) / "metrics.json"
+            with metrics.open("w") as f:
+                json.dump(results, f, ensure_ascii=False, indent=2)
