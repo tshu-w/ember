@@ -16,12 +16,12 @@ class WDCDataset(Dataset):
     def __init__(
         self,
         dataframe: pd.DataFrame,
-        imgs_dir: Path,
+        image_dir: Path,
         use_image: bool = False,
         transforms: Optional[Callable] = None,
     ) -> None:
         self._dataframe = dataframe
-        self._imgs_dir = imgs_dir
+        self._image_dir = image_dir
         self._len = len(dataframe)
 
         self._use_image = use_image
@@ -42,12 +42,12 @@ class WDCDataset(Dataset):
 
             if self._use_image:
                 id = raw[f"id_{suffix}"]
-                img_paths = sorted(self._imgs_dir.glob(f"{id}_*"))
+                image_paths = sorted(self._image_dir.glob(f"{id}_*"))
 
-                if img_paths:
+                if image_paths:
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
-                        image = Image.open(img_paths[0]).convert("RGB")
+                        image = Image.open(image_paths[0]).convert("RGB")
 
                 else:
                     image = Image.fromarray(
@@ -89,7 +89,7 @@ class WDCDataModule(LightningDataModule):
 
     def setup(self, stage: Optional[str]) -> None:
         data_dir = Path("../data/wdc/norm/")
-        imgs_dir = Path("../data/wdc/imgs")
+        image_dir = Path("../data/wdc/images/")
 
         if stage == "fit" or stage is None:
             training_path = (
@@ -110,13 +110,13 @@ class WDCDataModule(LightningDataModule):
 
             self.data_train = WDCDataset(
                 dataframe=training_df[~training_df["pair_id"].isin(validation_pair_id)],
-                imgs_dir=imgs_dir,
+                image_dir=image_dir,
                 use_image=self.use_image,
                 transforms=self.transforms,
             )
             self.data_valid = WDCDataset(
                 dataframe=training_df[training_df["pair_id"].isin(validation_pair_id)],
-                imgs_dir=imgs_dir,
+                image_dir=image_dir,
                 use_image=self.use_image,
                 transforms=self.transforms,
             )
@@ -125,7 +125,7 @@ class WDCDataModule(LightningDataModule):
             test_set_path = data_dir / "gold-standards" / f"{self.cate}_gs.json.gz"
             self.data_test = WDCDataset(
                 dataframe=pd.read_json(test_set_path, lines=True),
-                imgs_dir=imgs_dir,
+                image_dir=image_dir,
                 use_image=self.use_image,
                 transforms=self.transforms,
             )
