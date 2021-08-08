@@ -6,7 +6,7 @@ import os
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, ChainMap, Dict, List, Optional, Type, Union
 
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import LoggerCollection
@@ -114,11 +114,7 @@ class LitCLI(LightningCLI):
             val_results = self.trainer.validate(ckpt_path=ckpt_path, verbose=False)
             test_results = self.trainer.test(ckpt_path=ckpt_path, verbose=False)
 
-            results = [
-                {**val_result, **test_result}
-                for val_result, test_result in zip(val_results, test_results)
-            ]
-            results = results[0] if len(results) == 1 else results
+            results = dict(ChainMap(*val_results, *test_results))
 
             print(json.dumps(results, ensure_ascii=False, indent=2))
 
