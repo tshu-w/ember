@@ -195,13 +195,19 @@ class ViLTMatcher(LightningModule):
 
         return loss
 
-    def training_step(self, batch, batch_idx: int) -> STEP_OUTPUT:
+    def training_step(
+        self, batch, batch_idx: int, dataloader_idx: Optional[int] = None
+    ) -> STEP_OUTPUT:
         return self.common_step(batch, "train")
 
-    def validation_step(self, batch, batch_idx: int) -> Optional[STEP_OUTPUT]:
+    def validation_step(
+        self, batch, batch_idx: int, dataloader_idx: Optional[int] = None
+    ) -> Optional[STEP_OUTPUT]:
         return self.common_step(batch, "valid")
 
-    def test_step(self, batch, batch_idx: int) -> Optional[STEP_OUTPUT]:
+    def test_step(
+        self, batch, batch_idx: int, dataloader_idx: Optional[int] = None
+    ) -> Optional[STEP_OUTPUT]:
         return self.common_step(batch, "test")
 
     def configure_optimizers(self):
