@@ -10,7 +10,11 @@ from typing import Any, Callable, ChainMap, Dict, List, Optional, Type, Union
 
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import LoggerCollection
-from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
+from pytorch_lightning.utilities.cli import (
+    LightningCLI,
+    SaveConfigCallback,
+    LightningArgumentParser,
+)
 from rich import print
 
 
@@ -54,7 +58,16 @@ class LitCLI(LightningCLI):
             subclass_mode_data=subclass_mode_data,
         )
 
-    def before_fit(self):
+    def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
+        parser.add_argument(
+            "--fit", type=bool, default=True, help="Whether fit or not."
+        )
+
+    def before_instantiate_classes(self) -> None:
+        if not self.config["fit"]:
+            self.config["trainer"]["max_steps"] = 0
+
+    def before_fit(self) -> None:
         # share attributes between module and datamodule
         if self.datamodule is not None:
             for attr in self.shared_attrs:
@@ -76,7 +89,7 @@ class LitCLI(LightningCLI):
         if hasattr(self.model, "version"):
             version += "_" + self.model.version
 
-        if version:
+        if version and self.config["fit"]:
             timestramp = datetime.now().strftime("%m%d-%H%M%S")
             version += "_" + timestramp
 
@@ -99,10 +112,19 @@ class LitCLI(LightningCLI):
             self.trainer.tune(**self.fit_kwargs)
 
     def after_fit(self):
+        ckpt_path = None
+
         if self.trainer.checkpoint_callback.best_model_path:
             # HACK: https://github.com/PyTorchLightning/pytorch-lightning/discussions/8759
             ckpt_path = self.trainer.checkpoint_callback.best_model_path
+        elif self.config["config"]:
+            config_dir = Path(self.config["config"][0]()).parent
+            checkpoint_paths = list(config_dir.rglob("*.ckpt"))
 
+            if len(checkpoint_paths) == 1:
+                ckpt_path = checkpoint_paths[0]
+
+        if ckpt_path:
             # Disable useless logger after fit
             logging.getLogger("pytorch_lightning.utilities.distributed").setLevel(
                 logging.WARNING

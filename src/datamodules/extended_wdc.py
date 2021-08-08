@@ -7,7 +7,8 @@ from pathlib import Path
 import pandas as pd
 from pytorch_lightning import seed_everything
 
-DATA_DIR = Path("../data/wdc/")
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / Path("../../../data/wdc/")
 
 
 def swap_id(pair_id):

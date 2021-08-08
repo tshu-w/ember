@@ -72,6 +72,7 @@ class WDCDataModule(LightningDataModule):
         training_size: Literal["small", "medium", "large", "xlarge"] = "medium",
         use_image: bool = True,
         batch_size: int = 32,
+        extended: bool = False,
         num_workers: int = 4,
     ):
         super().__init__()
@@ -84,7 +85,9 @@ class WDCDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.version = f"{cate}_{training_size}_{use_image}_{batch_size}"
+        self.extended = extended
+
+        self.version = f"{cate}_{training_size}_{use_image}_{batch_size}_{extended}"
 
     def prepare_data(self) -> None:
         return super().prepare_data()
@@ -93,7 +96,7 @@ class WDCDataModule(LightningDataModule):
         data_dir = Path("../data/wdc/norm/")
         image_dir = Path("../data/wdc/images/")
 
-        if stage == "fit" or stage is None:
+        if stage in ["fit", "validate"] or stage is None:
             training_path = (
                 data_dir
                 / "training-sets"
@@ -124,9 +127,16 @@ class WDCDataModule(LightningDataModule):
             )
 
         if stage == "test" or stage is None:
-            test_set_path = data_dir / "gold-standards" / f"{self.cate}_gs.json.gz"
+            if not self.extended:
+                test_path = data_dir / "gold-standards" / f"{self.cate}_gs.json.gz"
+            else:
+                test_path = data_dir / "test-sets" / f"{self.cate}_test.json.gz"
+                if not test_path.exists():
+                    from .extended_wdc import main as extended_wdc
+                    extended_wdc()
+
             self.data_test = WDCDataset(
-                dataframe=pd.read_json(test_set_path, lines=True),
+                dataframe=pd.read_json(test_path, lines=True),
                 image_dir=image_dir,
                 use_image=self.use_image,
                 transforms=self.transforms,
