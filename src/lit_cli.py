@@ -95,6 +95,11 @@ class LitCLI(LightningCLI):
             timestramp = datetime.now().strftime("%m%d-%H%M%S")
             version += "_" + timestramp
 
+        if self.config["trainer"]["resume_from_checkpoint"]:
+            exp_path = Path(self.config["trainer"]["resume_from_checkpoint"]).parents[1]
+            if os.path.commonprefix([exp_path.name, version or ""]):
+                version = exp_path.name
+
         print(f"Experiment Name: [bold]{exp_name}[/bold]")
         print(f"Version: [bold]{version}[/bold]")
 
