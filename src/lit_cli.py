@@ -89,6 +89,8 @@ class LitCLI(LightningCLI):
         if hasattr(self.model, "version"):
             version += "_" + self.model.version
 
+        version += "_" + str(self.config["seed_everything"])
+
         if version and self.config["fit"]:
             timestramp = datetime.now().strftime("%m%d-%H%M%S")
             version += "_" + timestramp
