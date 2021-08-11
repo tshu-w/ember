@@ -31,7 +31,9 @@ from tenacity.wait import wait_random_exponential
 
 urllib3.disable_warnings()
 
-DATA_DIR = Path("../data/wdc")
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / Path("../../data/wdc")
+
 # NOTE: LOGLEVEL should not be 0(NOTSET)
 LOGGING_CONFIG = {
     "version": 1,
@@ -371,7 +373,7 @@ def check_images():
 
 
 def main():
-    seed_everything(42)
+    seed_everything(123)
 
     categories = ["all", "cameras", "computers", "shoes", "watches"]
     dfs = []
