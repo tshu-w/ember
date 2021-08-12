@@ -1,0 +1,3 @@
+[submodule "grid-feats-vqa"]
+	path = grid-feats-vqa
+	url = https://github.com/facebookresearch/grid-feats-vqa.git
