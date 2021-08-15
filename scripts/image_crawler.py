@@ -362,14 +362,18 @@ def check_images():
         training_sets = DATA_DIR / "nonnorm" / "training-sets" / f"{cate}_train"
         gold_standards = DATA_DIR / "nonnorm" / "gold-standards" / f"{cate}_gs.json.gz"
 
-        for f in itertools.chain(sorted(training_sets.rglob("*.json.gz")), [gold_standards]):
+        for f in itertools.chain(
+            sorted(training_sets.rglob("*.json.gz")), [gold_standards]
+        ):
             cnts = Counter()
             df = pd.read_json(f, lines=True)
             total = len(df)
             cnt = df.apply(
                 lambda x: int(x["id_right"] in ids) + int(x["id_left"] in ids), axis=1
             )
-            print(f"\t{f.stem[:-5]:>{25}}\t{total}\t{cnt.value_counts().to_json()}\t\t{(cnt.value_counts() / total).to_json()}")
+            print(
+                f"\t{f.stem[:-5]:>{25}}\t{total}\t{cnt.value_counts().to_json()}\t\t{(cnt.value_counts() / total).to_json()}"
+            )
 
 
 def main():
