@@ -129,7 +129,7 @@ def extract_roi_features(args, cfg, model):
             roi_features = model.roi_heads.box_pooler(
                 in_features, [x.pred_boxes for x in instances]
             )
-            roi_features = model.roi_heads.box_head(roi_features)
+            # roi_features = model.roi_heads.box_head(roi_features)
 
             idx = 0
             for i, x in enumerate(batch):
