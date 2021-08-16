@@ -27,7 +27,7 @@ def extract_feature_argument_parser():
         "--config",
         metavar="FILE",
         help="config file",
-        default="COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml",
+        default="COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml",
         # "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
     )
     parser.add_argument("--input", metavar="DIR", help="image directory", required=True)
@@ -54,12 +54,12 @@ class DetectionImageDataset(Dataset):
         self.cfg = cfg
 
     def __getitem__(self, index):
-        filename = str(self.image_list[index])
+        image_path = str(self.image_list[index])
         # image = cv2.imread(filename)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            image = Image.open(filename).convert("RGB")
+            image = Image.open(image_path).convert("RGB")
             image = np.asarray(image)[:, :, ::-1]
 
         if self.cfg.INPUT.FORMAT == "RGB":
@@ -71,7 +71,7 @@ class DetectionImageDataset(Dataset):
             "image": image,
             "height": height,
             "width": width,
-            "stem": Path(filename).stem,
+            "meta": {"filename": Path(image_path)},
         }
 
     def __len__(self):
@@ -136,7 +136,7 @@ def extract_roi_features(args, cfg, model):
                 num_instances = len(instances[i])
                 torch.save(
                     roi_features[idx : idx + num_instances, :],
-                    Path(args.output) / f"{x['stem']}.pt",
+                    Path(args.output) / f"{x['meta']['filename'].stem}.pt",
                 )
 
                 idx += num_instances
