@@ -19,7 +19,7 @@ commonmark==0.9.1
 cycler==0.10.0
 Cython==0.29.24
 decorator==5.0.9
-detectron2 @ git+https://github.com/facebookresearch/detectron2.git@0fb7f0432aa4f9e50360402f59bace32356d7c58
+detectron2 @ git+https://github.com/facebookresearch/detectron2.git@7825f076c28103933d6424ecf2caaad59943c5d5
 docstring-parser==0.10
 einops==0.3.0
 fake-headers==1.0.2
