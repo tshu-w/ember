@@ -27,7 +27,6 @@ def extract_feature_argument_parser():
         "--config",
         metavar="FILE",
         help="config file",
-        required=True,
         default="COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml",
         # "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
     )
