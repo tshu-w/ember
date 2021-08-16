@@ -49,8 +49,8 @@ def collate(batch, aug):
 
 
 class DetectionImageDataset(Dataset):
-    def __init__(self, path, cfg):
-        self.image_list = list(Path(path).rglob("*"))
+    def __init__(self, root, cfg):
+        self.image_list = list(Path(root).rglob("*"))
         self.cfg = cfg
 
     def __getitem__(self, index):
