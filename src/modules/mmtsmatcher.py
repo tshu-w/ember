@@ -159,11 +159,10 @@ class MMTSMatcher(LightningModule):
         )
 
         self.feature_type = feature_type
+        self.num_image_embeds = num_image_embeds
         self.transforms = get_transforms()
 
         self.lr = lr
-
-        self.version = f"{feature_type}_{num_image_embeds}"
 
         metrics_kwargs = {"ignore_index": 0}
         metrics = MetricCollection(

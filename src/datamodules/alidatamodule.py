@@ -100,8 +100,8 @@ class ALIDataset(Dataset):
 class AliDataModule(LightningDataModule):
     def __init__(
         self,
-        cate_name: Optional[ALI_CATE_NAME] = None,
         cate_level_name: Optional[ALI_CATE_LEVEL_NAME] = None,
+        cate_name: Optional[ALI_CATE_NAME] = None,
         prod_num: int = 200,
         use_image: bool = False,
         use_pv_pairs: bool = False,
@@ -111,8 +111,8 @@ class AliDataModule(LightningDataModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cate_name = cate_name
         self.cate_level_name = cate_level_name
+        self.cate_name = cate_name
         self.prod_num = prod_num
 
         self.use_image = use_image
@@ -121,9 +121,26 @@ class AliDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.version = (
-            f"{cate_name}_{cate_level_name}_{prod_num}_{use_image}_{use_pv_pairs}"
+    @property
+    def version(self):
+        self._version = "_".join(
+            map(
+                str,
+                [
+                    self.cate_level_name,
+                    self.cate_name,
+                    self.prod_num,
+                    self.use_pv_pairs,
+                ],
+            )
         )
+
+        if self.use_image:
+            self._version += f"_{self.feature_type}_{self.num_image_embeds}"
+        else:
+            self._version += f"_text"
+
+        return self._version
 
     def prepare_data(self) -> None:
         column_names = [

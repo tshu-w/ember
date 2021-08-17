@@ -16,6 +16,7 @@ from src.utils import FEATURE_SIZE
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+
 class WDCDataset(Dataset):
     def __init__(
         self,
@@ -105,7 +106,19 @@ class WDCDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.version = f"{cate}_{training_size}_{use_image}_{extended}"
+    @property
+    def version(self):
+        self._version = "_".join(map(str, [self.cate, self.training_size]))
+
+        if self.use_image:
+            self._version += f"_{self.feature_type}_{self.num_image_embeds}"
+        else:
+            self._version += f"_text"
+
+        if self.extended:
+            self._version += f"_extended"
+
+        return self._version
 
     def prepare_data(self) -> None:
         return super().prepare_data()

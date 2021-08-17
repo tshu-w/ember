@@ -21,7 +21,7 @@ def main():
             "checkpoint_callback": False,
         },
         seed_everything_default=123,
-        shared_attrs=["collate_fn", "feature_type", "transforms"],
+        shared_attrs=["collate_fn", "feature_type", "num_image_embeds", "transforms"],
         save_config_overwrite=True,
         subclass_mode_model=True,
         subclass_mode_data=True,
