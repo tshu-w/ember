@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import warnings
+from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Dict, List, Literal, Optional, Union
 
@@ -27,12 +28,25 @@ class WDCDataset(Dataset):
         transforms: Optional[Callable] = None,
     ) -> None:
         self.dataframe = dataframe
-        self.root = root
         self.len = len(dataframe)
 
         self.use_image = use_image
         self.feature_type = feature_type
         self.transforms = transforms
+
+        if self.use_image:
+            if self.feature_type == "e2e":
+                dir = root / "images"
+            else:
+                dir = root / f"{self.feature_type}_features"
+
+            self.id2paths = defaultdict(list)
+
+            for f in dir.glob("*"):
+                self.id2paths[f.stem[:-2]].append(f)
+
+            for k, v in self.id2paths.items():
+                self.id2paths[k].sort()
 
     def __getitem__(self, index):
         raw = self.dataframe.iloc[index].to_dict()
@@ -48,9 +62,9 @@ class WDCDataset(Dataset):
             res["texts"].append(text)
 
             if self.use_image:
-                id = raw[f"id_{suffix}"]
+                id = str(raw[f"id_{suffix}"])
                 if self.feature_type == "e2e":
-                    image_paths = sorted(self.root.glob(f"images/{id}_*"))
+                    image_paths = self.id2paths[id]
 
                     if image_paths:
                         with warnings.catch_warnings():
@@ -64,9 +78,7 @@ class WDCDataset(Dataset):
                         )
                         image = torch.zeros_like(self.transforms(image))
                 else:
-                    image_paths = sorted(
-                        self.root.glob(f"{self.feature_type}_features/{id}_*")
-                    )
+                    image_paths = self.id2paths[id]
 
                     if image_paths:
                         image = torch.load(image_paths[0], map_location="cpu")
