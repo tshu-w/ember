@@ -3,7 +3,6 @@
 
 import argparse
 
-import torch
 import transformers
 from pytorch_lightning import LightningDataModule, LightningModule
 
@@ -37,5 +36,4 @@ Availabed Datamodules: src.AliDataModule, src.WDCDataModule
 
 
 if __name__ == "__main__":
-    torch.multiprocessing.set_start_method("spawn")
     main()
