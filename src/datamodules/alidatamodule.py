@@ -14,9 +14,10 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
 from .build_dataset import build_dataset
-from src.utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, train_test_split
+from src.utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, FEATURE_SIZE, train_test_split
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 class ALIDataset(Dataset):
     def __init__(
