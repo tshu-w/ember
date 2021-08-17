@@ -14,6 +14,12 @@ def train_test_split(dataset: Dataset, test_size=0.25):
     return random_split(dataset, [train_size, test_size])
 
 
+FEATURE_SIZE = {
+    "grid": (2048, 7, 7),
+    "roi": (256, 7, 7),
+    "e2e": (2048, 7, 7),
+}
+
 ALI_CATE_LEVEL_NAME = Literal[
     "女装_女士精品", "女鞋", "男装", "服饰配件_皮带_帽子_围巾", "流行男鞋", "运动服_休闲服装", "运动鞋new"
 ]

@@ -3,8 +3,9 @@
 
 import json
 from functools import partial
+from itertools import chain
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import torch
 import torch.nn.functional as F
@@ -14,6 +15,7 @@ from pytorch_lightning import LightningModule
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
+from torch.nn.utils.rnn import pad_sequence
 from torchmetrics import F1, MetricCollection, Precision, Recall
 from torchvision import transforms
 from transformers import (
@@ -25,6 +27,7 @@ from transformers import (
 )
 
 from .mmts import MMTSConfig, MMTSForSequenceClassification
+from src.utils import FEATURE_SIZE
 
 
 def get_transforms():
@@ -33,10 +36,7 @@ def get_transforms():
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.46777044, 0.44531429, 0.40661017],
-                std=[0.12221994, 0.12145835, 0.14380469],
-            ),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
 
@@ -47,6 +47,7 @@ def collate_fn(
     max_length: Optional[int] = None,
     num_image_embeds: int = 1,
 ):
+    batch_size = len(batch)
     texts = [x["texts"] for x in batch]
     images = [x["images"] for x in batch]
 
@@ -68,45 +69,70 @@ def collate_fn(
     )
 
     if images[0]:
-        inputs["input_modals"] = torch.stack([torch.stack(imgs) for imgs in images])
+        images = list(chain.from_iterable(zip(*images)))
+        images_tensor = pad_sequence(images, batch_first=True)
+
+        if len(images_tensor.shape) == 5:  # 2BxNxDx7x7
+            images_tensor = images_tensor[:, :num_image_embeds, :]
+
+        inputs["input_modals"] = torch.stack(
+            [images_tensor[:batch_size, :], images_tensor[batch_size:, :]], dim=1
+        )
     else:
-        inputs["input_modals"] = torch.Tensor(len(batch), 0)
+        inputs["input_modals"] = torch.Tensor(batch_size, 0)
 
     return inputs, labels, raws
 
 
 class ImageEncoder(nn.Module):
-    def __init__(self, num_image_embeds):
+    def __init__(self, num_image_embeds, feature_type):
         super().__init__()
 
-        model = torchvision.models.resnet152(pretrained=True)
-        modules = list(model.children())[:-2]
-        self.model = nn.Sequential(*modules)
-        POOLING_BREAKDOWN = {
-            1: (1, 1),
-            2: (2, 1),
-            3: (3, 1),
-            4: (2, 2),
-            5: (5, 1),
-            6: (3, 2),
-            7: (7, 1),
-            8: (4, 2),
-            9: (3, 3),
-        }
-        self.pool = nn.AdaptiveAvgPool2d(POOLING_BREAKDOWN[num_image_embeds])
+        self.feature_type = feature_type
+
+        if feature_type == "e2e":
+            model = torchvision.models.resnet152(pretrained=True)
+            modules = list(model.children())[:-2]
+            self.model = nn.Sequential(*modules)
+        else:
+            self.model = nn.Identity()
+
+        if feature_type == "roi":
+            self.num_image_embeds = num_image_embeds
+            self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        else:
+            POOLING_BREAKDOWN = {
+                1: (1, 1),
+                2: (2, 1),
+                3: (3, 1),
+                4: (2, 2),
+                5: (5, 1),
+                6: (3, 2),
+                7: (7, 1),
+                8: (4, 2),
+                9: (3, 3),
+            }
+            self.pool = nn.AdaptiveAvgPool2d(POOLING_BREAKDOWN[num_image_embeds])
 
     def forward(self, x):
-        # Bx3x224x224 -> Bx2048x7x7 -> Bx2048xN -> BxNx2048
+        # grid: (Bx3x224x224) -> BxDx7x7 -> BxDxN -> BxNxD
+        # roi:  BxNxDx7x7 -> BxNxDx1x1 -> BxNxD
         out = self.pool(self.model(x))
         out = torch.flatten(out, start_dim=2)
-        out = out.transpose(1, 2).contiguous()
-        return out  # BxNx2048
+
+        if self.feature_type == "roi":
+            out = out[:, : self.num_image_embeds, :]
+        else:
+            out = out.transpose(1, 2).contiguous()
+
+        return out  # BxNxD
 
 
 class MMTSMatcher(LightningModule):
     def __init__(
         self,
         model_name: str = "bert-base-chinese",
+        feature_type: Literal["grid", "roi", "e2e"] = "grid",
         lr: float = 1e-05,
         max_length: int = 256,
         num_image_embeds: int = 1,
@@ -115,10 +141,12 @@ class MMTSMatcher(LightningModule):
         self.save_hyperparameters()
 
         config = AutoConfig.from_pretrained(model_name)
-        config = MMTSConfig(config, num_labels=2)
+        config = MMTSConfig(
+            config, num_labels=2, modal_hidden_size=FEATURE_SIZE[feature_type][0]
+        )
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         transformers = AutoModel.from_pretrained(model_name)
-        image_encoder = ImageEncoder(num_image_embeds)
+        image_encoder = ImageEncoder(num_image_embeds, feature_type)
         self.model = MMTSForSequenceClassification(
             config, transformers, image_encoder, tokenizer.sep_token_id
         )
@@ -129,9 +157,13 @@ class MMTSMatcher(LightningModule):
             max_length=max_length,
             num_image_embeds=num_image_embeds,
         )
+
+        self.feature_type = feature_type
         self.transforms = get_transforms()
 
         self.lr = lr
+
+        self.version = f"{feature_type}_{num_image_embeds}"
 
         metrics_kwargs = {"ignore_index": 0}
         metrics = MetricCollection(

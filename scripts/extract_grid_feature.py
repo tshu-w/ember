@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-
 TRANSFORMS = transforms.Compose(
     [
         transforms.Resize(256),

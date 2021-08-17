@@ -3,8 +3,10 @@
 
 import argparse
 
+import torch
 import transformers
 from pytorch_lightning import LightningDataModule, LightningModule
+
 from src.lit_cli import LitCLI
 
 transformers.logging.set_verbosity_error()
@@ -20,7 +22,7 @@ def main():
             "checkpoint_callback": False,
         },
         seed_everything_default=123,
-        shared_attrs=["collate_fn", "transforms"],
+        shared_attrs=["collate_fn", "feature_type", "transforms"],
         save_config_overwrite=True,
         subclass_mode_model=True,
         subclass_mode_data=True,
@@ -35,4 +37,5 @@ Availabed Datamodules: src.AliDataModule, src.WDCDataModule
 
 
 if __name__ == "__main__":
+    torch.multiprocessing.set_start_method("spawn")
     main()

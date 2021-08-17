@@ -20,7 +20,6 @@ from tqdm import tqdm
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-
 def extract_feature_argument_parser():
     parser = argparse.ArgumentParser(description="ROI feature extraction")
     parser.add_argument(

@@ -8,13 +8,15 @@ from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from PIL import Image
+import torch
+from PIL import Image, ImageFile
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
 from .build_dataset import build_dataset
-from .utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, train_test_split
+from src.utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, train_test_split
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ALIDataset(Dataset):
     def __init__(
@@ -22,21 +24,23 @@ class ALIDataset(Dataset):
         filename: Union[str, Path],
         use_image: bool = False,
         use_pv_pairs: bool = False,
+        feature_type: Optional[str] = None,
         transforms: Optional[Callable] = None,
     ) -> None:
-        self._filename = filename
+        self.filename = filename
 
-        self._num_lines = 0
+        self.num_lines = 0
         with open(filename) as f:
-            self._num_lines = sum(1 for _ in f)
+            self.num_lines = sum(1 for _ in f)
 
-        self._use_image = use_image
-        self._use_pv_pairs = use_pv_pairs
+        self.use_image = use_image
+        self.use_pv_pairs = use_pv_pairs
 
+        self.feature_type = feature_type
         self.transforms = transforms
 
     def __getitem__(self, index: int):
-        line = linecache.getline(str(self._filename), index + 1)
+        line = linecache.getline(str(self.filename), index + 1)
         raw = json.loads(line)
 
         res = {}
@@ -47,34 +51,49 @@ class ALIDataset(Dataset):
         def serialize_pv_pairs(pv_pairs):
             return " ".join([" ".join(p.split("#:#")) for p in pv_pairs.split("#;#")])
 
-        imgs_dir = Path(self._filename).parent / "imgs"
+        root = Path(self.filename).parent
 
         for suffix in ["left", "right"]:
             text = raw[f"title_{suffix}"]
 
-            if self._use_pv_pairs:
+            if self.use_pv_pairs:
                 pv_pairs = serialize_pv_pairs(raw[f"pv_pairs_{suffix}"])
                 text += " " + pv_pairs
 
             res["texts"].append(text)
 
-            if self._use_image:
-                img_path = imgs_dir / str(raw[f"id_{suffix}"])
-                if img_path.exists():
-                    image = Image.open(img_path).convert("RGB")
+            if self.use_image:
+                if self.feature_type == "e2e":
+                    image_path = root / "images" / (str(raw[f"id_{suffix}"]) + ".jpg")
+                    if image_path.exists():
+                        image = Image.open(image_path).convert("RGB")
+                        image = self.transforms(image)
+                    else:
+                        image = Image.fromarray(
+                            255 * np.ones((256, 256, 3), dtype=np.uint8)
+                        )
+                        image = torch.zeros_like(self.transforms(image))
                 else:
-                    image = Image.fromarray(
-                        255 * np.ones((256, 256, 3), dtype=np.uint8)
+                    image_path = (
+                        root
+                        / (str(self.feature_type) + "_features")
+                        / (str(raw[f"id_{suffix}"]) + ".pt")
                     )
 
-                image = self.transforms(image)
+                    if image_path.exists():
+                        image = torch.load(image_path, map_location="cpu")
+                    else:
+                        if self.feature_type == "grid":
+                            image = torch.zeros(*FEATURE_SIZE[self.feature_type])
+                        else:
+                            image = torch.zeros(0, *FEATURE_SIZE[self.feature_type])
 
                 res["images"].append(image)
 
         return res
 
     def __len__(self) -> int:
-        return self._num_lines
+        return self.num_lines
 
 
 class AliDataModule(LightningDataModule):
@@ -101,7 +120,9 @@ class AliDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.version = f"{cate_name}_{cate_level_name}_{prod_num}_{use_image}_{use_pv_pairs}_{batch_size}"
+        self.version = (
+            f"{cate_name}_{cate_level_name}_{prod_num}_{use_image}_{use_pv_pairs}"
+        )
 
     def prepare_data(self) -> None:
         column_names = [
@@ -162,6 +183,7 @@ class AliDataModule(LightningDataModule):
                 self.data_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
+                feature_type=self.feature_type,
                 transforms=self.transforms,
             )
             self.data_train, self.data_valid = train_test_split(dataset, test_size=0.2)
@@ -171,6 +193,7 @@ class AliDataModule(LightningDataModule):
                 self.test_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
+                feature_type=self.feature_type,
                 transforms=self.transforms,
             )
 
