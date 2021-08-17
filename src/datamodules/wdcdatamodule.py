@@ -172,7 +172,7 @@ class WDCDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=True,
-            pin_memory=False,
+            pin_memory=True,
             collate_fn=self.collate_fn,
         )
 
@@ -182,7 +182,7 @@ class WDCDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
-            pin_memory=False,
+            pin_memory=True,
             collate_fn=self.collate_fn,
         )
 
@@ -192,6 +192,6 @@ class WDCDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
-            pin_memory=False,
+            pin_memory=True,
             collate_fn=self.collate_fn,
         )
