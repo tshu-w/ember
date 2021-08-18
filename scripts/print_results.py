@@ -5,6 +5,9 @@
 import argparse
 import json
 import os
+from signal import signal, SIGPIPE, SIG_DFL
+
+signal(SIGPIPE, SIG_DFL)
 
 
 def main(args: argparse.Namespace):
