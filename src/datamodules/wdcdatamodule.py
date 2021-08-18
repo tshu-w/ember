@@ -24,13 +24,15 @@ class WDCDataset(Dataset):
         dataframe: pd.DataFrame,
         root: Path,
         use_image: bool = False,
+        image_only: bool = False,
         feature_type: Optional[str] = None,
         transforms: Optional[Callable] = None,
     ) -> None:
         self.dataframe = dataframe
         self.len = len(dataframe)
 
-        self.use_image = use_image
+        self.use_image = use_image or image_only
+        self.image_only = image_only
         self.feature_type = feature_type
         self.transforms = transforms
 
@@ -57,7 +59,10 @@ class WDCDataset(Dataset):
         res["images"] = []
 
         for suffix in ["left", "right"]:
-            text = raw[f"title_{suffix}"]
+            if not self.image_only:
+                text = raw[f"title_{suffix}"]
+            else:
+                text = " "
 
             res["texts"].append(text)
 
@@ -101,7 +106,8 @@ class WDCDataModule(LightningDataModule):
         self,
         cate: Literal["all", "cameras", "computers", "shoes", "watches"] = "all",
         training_size: Literal["small", "medium", "large", "xlarge"] = "medium",
-        use_image: bool = True,
+        use_image: bool = False,
+        image_only: bool = False,
         extended: bool = False,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -111,7 +117,8 @@ class WDCDataModule(LightningDataModule):
 
         self.cate = cate
         self.training_size = training_size
-        self.use_image = use_image
+        self.use_image = use_image or image_only
+        self.image_only = image_only
 
         self.extended = extended
 
@@ -123,6 +130,9 @@ class WDCDataModule(LightningDataModule):
         self._version = "_".join(map(str, [self.cate, self.training_size]))
 
         if self.use_image:
+            if self.image_only:
+                self._version += f"_image_only"
+
             self._version += f"_{self.feature_type}_{self.num_image_embeds}"
         else:
             self._version += f"_text"
@@ -160,6 +170,7 @@ class WDCDataModule(LightningDataModule):
                 dataframe=training_df[~training_df["pair_id"].isin(validation_pair_id)],
                 root=root_dir,
                 use_image=self.use_image,
+                image_only=self.image_only,
                 feature_type=self.feature_type,
                 transforms=self.transforms,
             )
@@ -167,6 +178,7 @@ class WDCDataModule(LightningDataModule):
                 dataframe=training_df[training_df["pair_id"].isin(validation_pair_id)],
                 root=root_dir,
                 use_image=self.use_image,
+                image_only=self.image_only,
                 feature_type=self.feature_type,
                 transforms=self.transforms,
             )
@@ -185,6 +197,7 @@ class WDCDataModule(LightningDataModule):
                 dataframe=pd.read_json(test_path, lines=True),
                 root=root_dir,
                 use_image=self.use_image,
+                image_only=self.image_only,
                 feature_type=self.feature_type,
                 transforms=self.transforms,
             )

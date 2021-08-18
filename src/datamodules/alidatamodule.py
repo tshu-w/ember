@@ -25,6 +25,7 @@ class ALIDataset(Dataset):
         filename: Union[str, Path],
         use_image: bool = False,
         use_pv_pairs: bool = False,
+        image_only: bool = False,
         feature_type: Optional[str] = None,
         transforms: Optional[Callable] = None,
     ) -> None:
@@ -34,8 +35,9 @@ class ALIDataset(Dataset):
         with open(filename) as f:
             self.num_lines = sum(1 for _ in f)
 
-        self.use_image = use_image
+        self.use_image = use_image or image_only
         self.use_pv_pairs = use_pv_pairs
+        self.image_only = image_only
 
         self.feature_type = feature_type
         self.transforms = transforms
@@ -55,7 +57,10 @@ class ALIDataset(Dataset):
         root = Path(self.filename).parent
 
         for suffix in ["left", "right"]:
-            text = raw[f"title_{suffix}"]
+            if not self.image_only:
+                text = raw[f"title_{suffix}"]
+            else:
+                text = " "
 
             if self.use_pv_pairs:
                 pv_pairs = serialize_pv_pairs(raw[f"pv_pairs_{suffix}"])
@@ -105,6 +110,7 @@ class AliDataModule(LightningDataModule):
         prod_num: int = 200,
         use_image: bool = False,
         use_pv_pairs: bool = False,
+        image_only: bool = False,
         batch_size: int = 32,
         num_workers: int = 4,
     ):
@@ -115,8 +121,9 @@ class AliDataModule(LightningDataModule):
         self.cate_name = cate_name
         self.prod_num = prod_num
 
-        self.use_image = use_image
+        self.use_image = use_image or image_only
         self.use_pv_pairs = use_pv_pairs
+        self.image_only = image_only
 
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -136,6 +143,9 @@ class AliDataModule(LightningDataModule):
         )
 
         if self.use_image:
+            if self.image_only:
+                self._version += f"_image_only"
+
             self._version += f"_{self.feature_type}_{self.num_image_embeds}"
         else:
             self._version += f"_text"
@@ -201,6 +211,7 @@ class AliDataModule(LightningDataModule):
                 self.data_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
+                image_only=self.image_only,
                 feature_type=self.feature_type,
                 transforms=self.transforms,
             )
@@ -211,6 +222,7 @@ class AliDataModule(LightningDataModule):
                 self.test_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
+                image_only=self.image_only,
                 feature_type=self.feature_type,
                 transforms=self.transforms,
             )
