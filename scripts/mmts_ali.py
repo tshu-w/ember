@@ -78,7 +78,8 @@ def argument_parser():
         "--fast-dev-run",
         nargs="?",
         type=int,
-        default=5,
+        default=None,
+        const=5,
         help="whether to run command or not",
     )
     parser.add_argument(
