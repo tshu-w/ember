@@ -4,13 +4,13 @@
 import argparse
 import json
 import multiprocessing
+import os
 import subprocess
 from multiprocessing import Pool
-from string import Template
 from pathlib import Path
+from string import Template
 
 from rich import print
-
 
 PROJECT_DIR = Path(__file__).parent.parent
 EXP_DIR = PROJECT_DIR / "logs" / "mmtsmatcher_wdcdatamodule"
@@ -66,6 +66,11 @@ for training_size in ["small", "medium", "large", "xlarge"]:
                 kwarg["cate"] = cate
                 kwarg["training_size"] = training_size
                 EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
+
+os.environ["http_proxy"] = "http://127.0.0.1:7890"
+os.environ["https_proxy"] = "http://127.0.0.1:7890"
+os.environ["all_proxy"] = "socks5://127.0.0.1:7890"
+os.environ["no_proxy"] = "localhost,127.0.0.0/8,*.local"
 
 
 def argument_parser():
