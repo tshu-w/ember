@@ -38,10 +38,9 @@ EXPT_TMP = Template(
   "data": {
     "class_path": "src.WDCDataModule",
     "init_args": {
-      "cate_level_name": "${cate_level_name}",
-      "cate_name": "${cate_name}",
-      "use_image": "${use_image}",
-      "prod_num": "${prod_num}"
+      "cate": "${cate}",
+      "training_size": "${training_size}",
+      "use_image": "${use_image}"
     }
   },
   "seed": "${seed}"
@@ -50,8 +49,10 @@ EXPT_TMP = Template(
 EXPTS = []
 SEEDS = [123, 42]
 
-for training_size in ["small", "medium", "large", "xlarge"]:
-    for cate in ["all", "cameras", "computers", "shoes", "watches"]:
+for training_size in ["xlarge"]:
+# for training_size in ["small", "medium", "large", "xlarge"]:
+    for cate in ["all"]:
+    # for cate in ["all", "cameras", "computers", "shoes", "watches"]:
         for seed in SEEDS:
             kwargs_list = [
                 {"use_image": False},
