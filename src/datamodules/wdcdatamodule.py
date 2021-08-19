@@ -45,8 +45,8 @@ class WDCDataset(Dataset):
             for f in dir.glob("*"):
                 self.id2paths[f.stem[:-2]].append(f)
 
-            for k, v in self.id2paths.items():
-                self.id2paths[k].sort()
+            for v in self.id2paths.values():
+                v.sort()
 
     def __getitem__(self, index):
         raw = self.dataframe.iloc[index].to_dict()
