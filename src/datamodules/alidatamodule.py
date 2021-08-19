@@ -23,16 +23,15 @@ class ALIDataset(Dataset):
     def __init__(
         self,
         filename: Union[str, Path],
+        dataframe: pd.DataFrame,
         use_image: bool = False,
         use_pv_pairs: bool = False,
         feature_type: Optional[str] = None,
         transforms: Optional[Callable] = None,
     ) -> None:
+        self.dataframe = dataframe
         self.filename = filename
-
-        self.num_lines = 0
-        with open(filename) as f:
-            self.num_lines = sum(1 for _ in f)
+        self.len = len(dataframe)
 
         self.use_image = use_image
         self.use_pv_pairs = use_pv_pairs
@@ -41,8 +40,7 @@ class ALIDataset(Dataset):
         self.transforms = transforms
 
     def __getitem__(self, index: int):
-        line = linecache.getline(str(self.filename), index + 1)
-        raw = json.loads(line)
+        raw = self.dataframe.iloc[index].to_dict()
 
         res = {}
         res["raw"] = raw
@@ -94,7 +92,7 @@ class ALIDataset(Dataset):
         return res
 
     def __len__(self) -> int:
-        return self.num_lines
+        return self.len
 
 
 class AliDataModule(LightningDataModule):
@@ -197,8 +195,11 @@ class AliDataModule(LightningDataModule):
 
     def setup(self, stage: Optional[str]) -> None:
         if stage == "fit" or stage is None:
+            dataframe = pd.read_json(self.data_path, lines=True)
+
             dataset = ALIDataset(
-                self.data_path,
+                dataframe=dataframe,
+                filename=self.data_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
                 feature_type=self.feature_type,
@@ -207,8 +208,11 @@ class AliDataModule(LightningDataModule):
             self.data_train, self.data_valid = train_test_split(dataset, test_size=0.2)
 
         if stage == "test" or stage is None:
+            dataframe = pd.read_json(self.test_path, line=True)
+
             self.data_test = ALIDataset(
-                self.test_path,
+                dataframe=dataframe,
+                filename=self.filename,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
                 feature_type=self.feature_type,
