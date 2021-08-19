@@ -2,65 +2,26 @@
 # -*- coding: utf-8 -*-
 
 import json
-import os
 import logging
+import os
+from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, ChainMap, Dict, List, Optional, Type, Union
 
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import LoggerCollection
-from pytorch_lightning.utilities.cli import (
-    LightningCLI,
-    SaveConfigCallback,
-    LightningArgumentParser,
-)
+from pytorch_lightning.utilities.cli import LightningArgumentParser, LightningCLI
 from rich import print
 
 
 class LitCLI(LightningCLI):
-    def __init__(
-        self,
-        model_class: Union[Type[LightningModule], Callable[..., LightningModule]],
-        datamodule_class: Optional[
-            Union[Type[LightningDataModule], Callable[..., LightningDataModule]]
-        ] = None,
-        save_config_callback: Optional[Type[SaveConfigCallback]] = SaveConfigCallback,
-        save_config_filename: str = "config.yaml",
-        save_config_overwrite: bool = False,
-        trainer_class: Union[Type[Trainer], Callable[..., Trainer]] = Trainer,
-        trainer_defaults: Dict[str, Any] = None,
-        seed_everything_default: int = None,
-        description: str = "pytorch-lightning trainer command line tool",
-        env_prefix: str = "PL",
-        env_parse: bool = False,
-        parser_kwargs: Dict[str, Any] = None,
-        subclass_mode_model: bool = False,
-        subclass_mode_data: bool = False,
-        shared_attrs: List[str] = [],
-    ) -> None:
-        self.shared_attrs = shared_attrs
-
-        super().__init__(
-            model_class,
-            datamodule_class=datamodule_class,
-            save_config_callback=save_config_callback,
-            save_config_filename=save_config_filename,
-            save_config_overwrite=save_config_overwrite,
-            trainer_class=trainer_class,
-            trainer_defaults=trainer_defaults,
-            seed_everything_default=seed_everything_default,
-            description=description,
-            env_prefix=env_prefix,
-            env_parse=env_parse,
-            parser_kwargs=parser_kwargs,
-            subclass_mode_model=subclass_mode_model,
-            subclass_mode_data=subclass_mode_data,
-        )
-
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument(
             "--fit", type=bool, default=True, help="Whether fit or not."
+        )
+        parser.add_argument(
+            "--shared_attrs",
+            nargs="+",
+            default=["collate_fn", "transforms", "feature_type", "num_image_embeds"],
         )
 
     def before_instantiate_classes(self) -> None:
@@ -70,7 +31,7 @@ class LitCLI(LightningCLI):
     def before_fit(self) -> None:
         # share attributes between module and datamodule
         if self.datamodule is not None:
-            for attr in self.shared_attrs:
+            for attr in self.config["shared_attrs"]:
                 if hasattr(self.model, attr) and not hasattr(self.datamodule, attr):
                     setattr(self.datamodule, attr, getattr(self.model, attr))
 
