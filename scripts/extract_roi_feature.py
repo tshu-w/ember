@@ -137,7 +137,7 @@ def extract_roi_features(args, cfg, model):
             for i, x in enumerate(batch):
                 num_instances = len(instances[i])
                 torch.save(
-                    roi_features[idx : idx + num_instances, :MAX_INSTANCE, :],
+                    roi_features[idx : idx + num_instances, :][:MAX_INSTANCE],
                     Path(args.output) / f"{x['meta']['filename'].stem}.pt",
                 )
 
