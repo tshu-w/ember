@@ -10,8 +10,6 @@ from multiprocessing import Pool
 from pathlib import Path
 from string import Template
 
-from rich import print
-
 PROJECT_DIR = Path(__file__).parent.parent
 EXP_DIR = PROJECT_DIR / "logs" / "mmtsmatcher_alidatamodule"
 EXP_DIR.mkdir(parents=True, exist_ok=True)

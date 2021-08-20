@@ -10,14 +10,12 @@ from multiprocessing import Pool
 from pathlib import Path
 from string import Template
 
-from rich import print
-
 PROJECT_DIR = Path(__file__).parent.parent
 EXP_DIR = PROJECT_DIR / "logs" / "mmtsmatcher_wdcdatamodule"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_ARGS = {
-    "model_name": "bert-base-chinese",
+    "model_name": "bert-base-uncased",
     "feature_type": "grid",
     "num_image_embeds": 1,
     "cate": "all",
