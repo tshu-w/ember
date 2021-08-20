@@ -20,6 +20,9 @@ from tqdm import tqdm
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+MAX_INSTANCE = 36
+
+
 def extract_feature_argument_parser():
     parser = argparse.ArgumentParser(description="ROI feature extraction")
     parser.add_argument(
@@ -134,7 +137,7 @@ def extract_roi_features(args, cfg, model):
             for i, x in enumerate(batch):
                 num_instances = len(instances[i])
                 torch.save(
-                    roi_features[idx : idx + num_instances, :],
+                    roi_features[idx : idx + num_instances, :MAX_INSTANCE, :],
                     Path(args.output) / f"{x['meta']['filename'].stem}.pt",
                 )
 
