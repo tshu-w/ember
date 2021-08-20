@@ -190,7 +190,7 @@ class AliDataModule(LightningDataModule):
                     cate_level_name=self.cate_level_name,
                     num=self.prod_num,
                     path=self.test_path,
-                    size=5000,
+                    size=4000,
                 )
 
     def setup(self, stage: Optional[str]) -> None:
