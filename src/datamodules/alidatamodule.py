@@ -208,11 +208,11 @@ class AliDataModule(LightningDataModule):
             self.data_train, self.data_valid = train_test_split(dataset, test_size=0.2)
 
         if stage == "test" or stage is None:
-            dataframe = pd.read_json(self.test_path, line=True)
+            dataframe = pd.read_json(self.test_path, lines=True)
 
             self.data_test = ALIDataset(
                 dataframe=dataframe,
-                filename=self.filename,
+                filename=self.test_path,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
                 feature_type=self.feature_type,
