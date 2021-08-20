@@ -80,10 +80,10 @@ def argument_parser():
         type=int,
         default=None,
         const=5,
-        help="whether to run command or not",
+        help="numbers of fast dev run",
     )
     parser.add_argument(
-        "--no-run", action="store_true", help="whether to run command or not"
+        "--no-run", action="store_true", help="whether to not run command"
     )
     parser.add_argument("--gpus", nargs="+", default=["0"], help="availabled gpus")
 
