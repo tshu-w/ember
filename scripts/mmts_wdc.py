@@ -83,6 +83,9 @@ def argument_parser():
         help="numbers of fast dev run",
     )
     parser.add_argument(
+        "--num-expt", type=int, default=1, help="how many experiments per gpu"
+    )
+    parser.add_argument(
         "--no-run", action="store_true", help="whether to not run command"
     )
     parser.add_argument("--gpus", nargs="+", default=["0"], help="availabled gpus")
@@ -92,7 +95,7 @@ def argument_parser():
 
 def run(exp_args, args):
     worker_id = int(multiprocessing.current_process().name.rsplit("-", 1)[1]) - 1
-    gpu = args.gpus[worker_id]
+    gpu = args.gpus[worker_id % len(args.gpus)]
 
     exp_name = "_".join(map(str, exp_args["data"]["init_args"].values()))
     exp_name += "_" + "_".join(map(str, exp_args["model"]["init_args"].values()))
@@ -124,7 +127,7 @@ def run(exp_args, args):
 
 if __name__ == "__main__":
     args = argument_parser().parse_args()
-    pool = Pool(processes=len(args.gpus))
+    pool = Pool(processes=len(args.gpus) * args.num_expt)
 
     for expt in EXPTS:
         pool.apply_async(
