@@ -100,8 +100,8 @@ def run(exp_args, args):
     exp_name = "_".join(map(str, exp_args["data"]["init_args"].values()))
     exp_name += "_" + "_".join(map(str, exp_args["model"]["init_args"].values()))
 
-    outfile = EXP_DIR / (exp_name + "_out.log")
-    errfile = EXP_DIR / (exp_name + "_err.log")
+    outfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_out.log"
+    errfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_err.log"
 
     if args.fast_dev_run:
         cmd = f"""./run.py \\
