@@ -25,10 +25,11 @@ class WDCDataset(Dataset):
         root: Path,
         use_image: bool = False,
         feature_type: Optional[str] = None,
+        filter_no_image: bool = False,
         transforms: Optional[Callable] = None,
     ) -> None:
         self.dataframe = dataframe
-        self.len = len(dataframe)
+        self.len = len(self.dataframe)
 
         self.use_image = use_image
         self.feature_type = feature_type
@@ -42,11 +43,18 @@ class WDCDataset(Dataset):
 
             self.id2paths = defaultdict(list)
 
-            for f in dir.glob("*"):
-                self.id2paths[f.stem[:-2]].append(f)
+            for f in dir.glob("*_*"):
+                self.id2paths[int(f.stem[:-2])].append(f)
 
             for v in self.id2paths.values():
                 v.sort()
+
+            if filter_no_image:
+                ids = self.id2paths.keys()
+                self.dataframe = dataframe[
+                    (dataframe["id_left"].isin(ids)) & (dataframe["id_right"].isin(ids))
+                ]
+                self.len = len(self.dataframe)
 
     def __getitem__(self, index):
         raw = self.dataframe.iloc[index].to_dict()
@@ -62,7 +70,7 @@ class WDCDataset(Dataset):
             res["texts"].append(text)
 
             if self.use_image:
-                id = str(raw[f"id_{suffix}"])
+                id = raw[f"id_{suffix}"]
                 if self.feature_type == "e2e":
                     image_paths = self.id2paths[id]
 
@@ -102,6 +110,7 @@ class WDCDataModule(LightningDataModule):
         cate: Literal["all", "cameras", "computers", "shoes", "watches"] = "all",
         training_size: Literal["small", "medium", "large", "xlarge"] = "medium",
         use_image: bool = True,
+        filter_no_image: bool = False,
         extended: bool = False,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -113,6 +122,7 @@ class WDCDataModule(LightningDataModule):
         self.training_size = training_size
         self.use_image = use_image
 
+        self.filter_no_image = filter_no_image
         self.extended = extended
 
         self.batch_size = batch_size
@@ -126,6 +136,9 @@ class WDCDataModule(LightningDataModule):
             self._version += f"_{self.feature_type}_{self.num_image_embeds}"
         else:
             self._version += f"_text"
+
+        if self.filter_no_image:
+            self._version += f"_filter"
 
         if self.extended:
             self._version += f"_extended"
@@ -161,6 +174,7 @@ class WDCDataModule(LightningDataModule):
                 root=root_dir,
                 use_image=self.use_image,
                 feature_type=self.feature_type,
+                filter_no_image=self.filter_no_image,
                 transforms=self.transforms,
             )
             self.data_valid = WDCDataset(
@@ -168,6 +182,7 @@ class WDCDataModule(LightningDataModule):
                 root=root_dir,
                 use_image=self.use_image,
                 feature_type=self.feature_type,
+                filter_no_image=self.filter_no_image,
                 transforms=self.transforms,
             )
 
