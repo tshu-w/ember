@@ -131,7 +131,7 @@ class ImageEncoder(nn.Module):
 class MMTSMatcher(LightningModule):
     def __init__(
         self,
-        model_name: str = "bert-base-chinese",
+        model_name: str = "bert-base-uncased",
         feature_type: Literal["grid", "roi", "e2e"] = "grid",
         lr: float = 1e-05,
         max_length: int = 256,
@@ -144,7 +144,10 @@ class MMTSMatcher(LightningModule):
         config = MMTSConfig(
             config, num_labels=2, modal_hidden_size=FEATURE_SIZE[feature_type][0]
         )
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        if "visualbert" not in model_name:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+        else:
+            tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         transformers = AutoModel.from_pretrained(model_name)
         image_encoder = ImageEncoder(num_image_embeds, feature_type)
         self.model = MMTSForSequenceClassification(

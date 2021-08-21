@@ -161,7 +161,7 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
             position_ids=position_ids,
             token_type_ids=token_type_ids,
             inputs_embeds=inputs_embeds,
-            past_key_values_length=past_key_values_length,
+            # past_key_values_length=past_key_values_length,
         )
 
         if attention_mask is None:
@@ -218,10 +218,10 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
             embedding_output,
             attention_mask=extended_attention_mask,
             head_mask=head_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_extended_attention_mask,
-            past_key_values=past_key_values,
-            use_cache=use_cache,
+            # encoder_hidden_states=encoder_hidden_states,
+            # encoder_attention_mask=encoder_extended_attention_mask,
+            # past_key_values=past_key_values,
+            # use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
@@ -239,10 +239,10 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
         return BaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            past_key_values=encoder_outputs.past_key_values,
+            # past_key_values=encoder_outputs.past_key_values,
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
-            cross_attentions=encoder_outputs.cross_attentions,
+            # cross_attentions=encoder_outputs.cross_attentions,
         )
 
     def get_input_embeddings(self):
