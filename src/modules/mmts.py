@@ -18,6 +18,7 @@ class ModalEmbeddings(nn.Module):
         self.proj_embeddings = nn.Linear(config.modal_hidden_size, config.hidden_size)
         self.position_embeddings = embeddings.position_embeddings
         self.token_type_embeddings = embeddings.token_type_embeddings
+        self.type_vocab_size = self.token_type_embeddings.num_embeddings
         self.word_embeddings = embeddings.word_embeddings
         self.LayerNorm = embeddings.LayerNorm
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
@@ -57,7 +58,12 @@ class ModalEmbeddings(nn.Module):
                 )
             )
             token_type_ids.append(
-                torch.full((batch_size, seq_length), i, device=device, dtype=torch.long)
+                torch.full(
+                    (batch_size, seq_length),
+                    min(i, self.type_vocab_size - 1),
+                    device=device,
+                    dtype=torch.long,
+                )
             )
 
         token_embeddings = torch.cat(token_embeddings, dim=1)
