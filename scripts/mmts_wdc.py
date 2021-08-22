@@ -122,7 +122,9 @@ def run(exp_args, args):
 
     if not args.no_run:
         subprocess.call(cmd, shell=True)
-        (EXP_DIR / exp_name).touch()
+        print(f"{exp_name} finished")
+        if not args.fast_dev_run:
+            (EXP_DIR / exp_name).touch()
 
 
 if __name__ == "__main__":
