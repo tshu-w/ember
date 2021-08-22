@@ -47,7 +47,7 @@ EXPT_TMP = Template(
 }"""
 )
 EXPTS = []
-SEEDS = [123, 42]
+SEEDS = [123, 42, 1337]
 
 for prod_num in [200, 400, 800]:
     for seed in SEEDS:

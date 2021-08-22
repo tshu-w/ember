@@ -45,7 +45,7 @@ EXPT_TMP = Template(
 }"""
 )
 EXPTS = []
-SEEDS = [123, 42]
+SEEDS = [123, 42, 1337]
 
 for training_size in ["xlarge"]:
 # for training_size in ["small", "medium", "large", "xlarge"]:
