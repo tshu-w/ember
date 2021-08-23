@@ -15,7 +15,7 @@ EXP_DIR = PROJECT_DIR / "logs" / "mmtsmatcher_wdcdatamodule"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_ARGS = {
-    "model_name": "bert-base-uncased",
+    "model_name": "roberta-base",
     "feature_type": "grid",
     "num_image_embeds": 1,
     "cate": "all",
@@ -48,15 +48,15 @@ EXPTS = []
 SEEDS = [123, 42, 1337]
 
 for training_size in ["xlarge"]:
-# for training_size in ["small", "medium", "large", "xlarge"]:
-    for cate in ["all"]:
-    # for cate in ["all", "cameras", "computers", "shoes", "watches"]:
+    # for training_size in ["small", "medium", "large"]:
+    # for cate in ["all"]:
+    for cate in ["cameras", "computers", "shoes", "watches", "all"]:
         for seed in SEEDS:
             kwargs_list = [
                 {"use_image": False},
                 {"use_image": True, "feature_type": "grid", "num_image_embeds": 1},
-                {"use_image": True, "feature_type": "grid", "num_image_embeds": 5},
-                {"use_image": True, "feature_type": "roi", "num_image_embeds": 5},
+                {"use_image": True, "feature_type": "grid", "num_image_embeds": 4},
+                {"use_image": True, "feature_type": "roi", "num_image_embeds": 4},
             ]
             use_image = False
 

@@ -11,25 +11,23 @@ from pathlib import Path
 from string import Template
 
 PROJECT_DIR = Path(__file__).parent.parent
-EXP_DIR = PROJECT_DIR / "logs" / "mmtsmatcher_alidatamodule"
+EXP_DIR = PROJECT_DIR / "logs" / "imagematcher_alidatamodule"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_ARGS = {
-    "model_name": "bert-base-chinese",
     "feature_type": "grid",
     "num_image_embeds": 1,
     "cate_level_name": "null",
     "cate_name": "null",
-    "use_image": False,
+    "use_image": True,
     "prod_num": 200,
     "seed": 123,
 }
 EXPT_TMP = Template(
     """{
   "model": {
-    "class_path": "src.MMTSMatcher",
+    "class_path": "src.ImageMatcher",
     "init_args": {
-      "model_name": "${model_name}",
       "feature_type": "${feature_type}",
       "num_image_embeds": "${num_image_embeds}"
     }
@@ -47,22 +45,46 @@ EXPT_TMP = Template(
 }"""
 )
 EXPTS = []
-SEEDS = [123, 42, 1337]
+SEEDS = [123, 42] #, 1337]
 
-for prod_num in [200, 400, 800]:
-    for seed in SEEDS:
-        kwargs_list = [
-            {"use_image": False},
-            {"use_image": True, "feature_type": "grid", "num_image_embeds": 1},
-            {"use_image": True, "feature_type": "grid", "num_image_embeds": 5},
-            {"use_image": True, "feature_type": "roi", "num_image_embeds": 5},
-        ]
-        use_image = False
+for cate_level_name in ["null", "男装"]:
+    for cate_name in ["null"]:
+        for prod_num in [200, 400, 800]:
+            for seed in SEEDS:
+                kwargs_list = [
+                    # {"use_image": False},
+                    {"use_image": True, "feature_type": "grid", "num_image_embeds": 1},
+                    # {"use_image": True, "feature_type": "grid", "num_image_embeds": 4},
+                    # {"use_image": True, "feature_type": "roi", "num_image_embeds": 4},
+                ]
+                use_image = False
 
-        for kwarg in kwargs_list:
-            kwarg["prod_num"] = prod_num
-            kwarg["seed"] = seed
-            EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
+                for kwarg in kwargs_list:
+                    kwarg["cate_level_name"] = cate_level_name
+                    kwarg["cate_name"] = cate_name
+                    kwarg["prod_num"] = prod_num
+                    kwarg["seed"] = seed
+                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
+
+for cate_level_name in ["null"]:
+    for cate_name in ["连衣裙"]:
+        for prod_num in [200, 400, 800]:
+            for seed in SEEDS:
+                kwargs_list = [
+                    # {"use_image": False},
+                    {"use_image": True, "feature_type": "grid", "num_image_embeds": 1},
+                    # {"use_image": True, "feature_type": "grid", "num_image_embeds": 4},
+                    # {"use_image": True, "feature_type": "roi", "num_image_embeds": 4},
+                ]
+                use_image = False
+
+                for kwarg in kwargs_list:
+                    kwarg["cate_level_name"] = cate_level_name
+                    kwarg["cate_name"] = cate_name
+                    kwarg["prod_num"] = prod_num
+                    kwarg["seed"] = seed
+                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
+
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
