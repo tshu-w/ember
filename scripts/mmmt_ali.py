@@ -64,6 +64,14 @@ for prod_num in [200, 400, 800]:
                         "text_image": "aligned",
                         "text_text": "cross",
                         "use_text": True,
+                        "use_image": False,
+                        "feature_type": "grid",
+                        "num_image_embeds": 1,
+                    },
+                    {
+                        "text_image": "aligned",
+                        "text_text": "cross",
+                        "use_text": True,
                         "use_image": True,
                         "feature_type": "grid",
                         "num_image_embeds": 1,
@@ -76,14 +84,14 @@ for prod_num in [200, 400, 800]:
                         "feature_type": "roi",
                         "num_image_embeds": 9,
                     },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": False,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
+                    # {
+                    #     "text_image": "seperated",
+                    #     "text_text": "cross",
+                    #     "use_text": True,
+                    #     "use_image": False,
+                    #     "feature_type": "grid",
+                    #     "num_image_embeds": 1,
+                    # },
                     {
                         "text_image": "seperated",
                         "text_text": "cross",
@@ -117,7 +125,6 @@ for prod_num in [200, 400, 800]:
                         "num_image_embeds": 9,
                     },
                 ]
-                use_image = False
 
                 for kwarg in kwargs_list:
                     kwarg["cate_level_name"] = cate_level_name
@@ -135,6 +142,14 @@ for prod_num in [200, 400, 800]:
                         "text_image": "aligned",
                         "text_text": "dual",
                         "use_text": True,
+                        "use_image": False,
+                        "feature_type": "grid",
+                        "num_image_embeds": 1,
+                    },
+                    {
+                        "text_image": "aligned",
+                        "text_text": "dual",
+                        "use_text": True,
                         "use_image": True,
                         "feature_type": "grid",
                         "num_image_embeds": 1,
@@ -147,14 +162,14 @@ for prod_num in [200, 400, 800]:
                         "feature_type": "roi",
                         "num_image_embeds": 9,
                     },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": False,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
+                    # {
+                    #     "text_image": "seperated",
+                    #     "text_text": "dual",
+                    #     "use_text": True,
+                    #     "use_image": False,
+                    #     "feature_type": "grid",
+                    #     "num_image_embeds": 1,
+                    # },
                     {
                         "text_image": "seperated",
                         "text_text": "dual",
@@ -172,7 +187,6 @@ for prod_num in [200, 400, 800]:
                         "num_image_embeds": 9,
                     },
                 ]
-                use_image = False
 
                 for kwarg in kwargs_list:
                     kwarg["cate_level_name"] = cate_level_name
