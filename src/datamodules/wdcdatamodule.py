@@ -228,6 +228,7 @@ class WDCDataModule(LightningDataModule):
             shuffle=True,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            persistent_workers=True,
             prefetch_factor=4,
         )
 
@@ -239,6 +240,7 @@ class WDCDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            persistent_workers=True,
             prefetch_factor=4,
         )
 
@@ -250,5 +252,6 @@ class WDCDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            persistent_workers=True,
             prefetch_factor=4,
         )
