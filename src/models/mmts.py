@@ -167,7 +167,7 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
                 ((batch_size, seq_length + past_key_values_length)), device=device
             )
 
-        if input_modals.size(1):
+        if input_modals is not None:
             modal_embeddings = self.modal_encoder(input_modals)
             attention_mask = torch.cat(
                 [

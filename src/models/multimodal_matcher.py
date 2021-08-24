@@ -47,7 +47,7 @@ class MultimodalMatcher(LightningModule):
         assert self.use_text or self.use_image
 
         if self.text_image == "aligned":
-            assert self.use_text and self.use_image
+            # assert self.use_text and self.use_image
 
             config = AutoConfig.from_pretrained(model_name)
             config = MMTSConfig(config, modal_hidden_size=FEATURE_SIZE[feature_type][0])
@@ -61,7 +61,6 @@ class MultimodalMatcher(LightningModule):
             image_encoder = ImageEncoder(
                 feature_type=feature_type, num_image_embeds=num_image_embeds
             )
-
             model = MMTSModel(
                 config=config,
                 transformer=transformers,
@@ -70,13 +69,20 @@ class MultimodalMatcher(LightningModule):
             )
 
             self.model = TextMatcher(model=model, type=self.text_text)
+
+            if hasattr(model.config, "hidden_dropout_prob"):
+                dropout = model.config.hidden_dropout_prob
             output_dim = self.model.get_output_dim()
+
         elif self.text_image == "seperated":
             if self.use_text:
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
                 model = AutoModel.from_pretrained(model_name)
 
                 self.text_model = TextMatcher(model=model, type=self.text_text)
+
+                if hasattr(model.config, "hidden_dropout_prob"):
+                    dropout = model.config.hidden_dropout_prob
                 output_dim = self.text_model.get_output_dim()
             else:
                 tokenizer = None
