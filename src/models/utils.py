@@ -86,8 +86,9 @@ def collate_fn(
         if text_text == "cross":
             inputs["input_modals"] = images
         elif text_text == "dual":
-            for i in range(2):
-                inputs[i]["input_modals"] = images[:, i].unsqueeze(dim=1)
+            if images is not None:
+                for i in range(2):
+                    inputs[i]["input_modals"] = images[:, i].unsqueeze(dim=1)
 
     elif text_image == "seperated":
         inputs = texts, images

@@ -143,7 +143,9 @@ class AliDataModule(LightningDataModule):
         )
 
         if self.use_text:
-            self._version += f"_text_{self.use_pv_pairs}"
+            self._version += "_text"
+            if self.use_pv_pairs:
+                self._version += "_pv_pairs"
 
         if self.use_image:
             self._version += f"_image_{self.feature_type}_{self.num_image_embeds}"
@@ -164,7 +166,7 @@ class AliDataModule(LightningDataModule):
         self.test_path = Path(
             f"../data/ali/testset/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
         )
-        self.root = Path(f"../data/ali")
+        self.root = Path("../data/ali")
 
     def setup(self, stage: Optional[str]) -> None:
         if stage == "fit" or stage is None:
