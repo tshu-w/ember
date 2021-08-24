@@ -19,10 +19,11 @@ class LitCLI(LightningCLI):
             "--fit", type=bool, default=True, help="Whether fit or not."
         )
         parser.add_argument(
-            "--shared_attrs",
-            nargs="+",
-            default=["collate_fn", "transforms", "feature_type", "num_image_embeds"],
+            "--shared_attrs", nargs="+", default=["collate_fn", "transforms"],
         )
+
+        for arg in ["use_text", "use_image", "feature_type", "num_image_embeds"]:
+            parser.link_arguments(f"model.init_args.{arg}", f"data.init_args.{arg}")
 
     def before_instantiate_classes(self) -> None:
         if not self.config["fit"]:
@@ -43,12 +44,12 @@ class LitCLI(LightningCLI):
         exp_name = type(self.model).__name__
         exp_name += "_" + (type(self.datamodule).__name__ if self.datamodule else "")
 
-        version = None
-        if self.datamodule is not None and hasattr(self.datamodule, "version"):
-            version = self.datamodule.version
+        version = ""
+        if hasattr(self.model, "get_version"):
+            version = self.model.get_version()
 
-        if hasattr(self.model, "version"):
-            version += "_" + self.model.version
+        if self.datamodule is not None and hasattr(self.datamodule, "version"):
+            version += ("_" if version else "") + self.datamodule.version
 
         version += "_" + str(self.config["seed_everything"])
 

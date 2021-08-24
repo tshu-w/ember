@@ -35,8 +35,6 @@ class ModalEmbeddings(nn.Module):
         position_ids = []
         token_type_ids = []
 
-        if len(input_modals.size()) == 4:
-            input_modals.unsqueeze_(1)
         assert input_modals.size(1) <= 2, "only one or two images are supported"
 
         for i in range(input_modals.size(1)):
@@ -106,8 +104,8 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
+        # encoder_hidden_states=None,
+        # encoder_attention_mask=None,
         past_key_values=None,
         use_cache=None,
         output_attentions=None,
@@ -190,22 +188,22 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
             attention_mask, input_shape, device
         )
 
-        # If a 2D or 3D attention mask is provided for the cross-attention
-        # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
-        if self.config.is_decoder and encoder_hidden_states is not None:
-            (
-                encoder_batch_size,
-                encoder_sequence_length,
-                _,
-            ) = encoder_hidden_states.size()
-            encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
-            if encoder_attention_mask is None:
-                encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
-            encoder_extended_attention_mask = self.invert_attention_mask(
-                encoder_attention_mask
-            )
-        else:
-            encoder_extended_attention_mask = None
+        # # If a 2D or 3D attention mask is provided for the cross-attention
+        # # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
+        # if self.config.is_decoder and encoder_hidden_states is not None:
+        #     (
+        #         encoder_batch_size,
+        #         encoder_sequence_length,
+        #         _,
+        #     ) = encoder_hidden_states.size()
+        #     encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
+        #     if encoder_attention_mask is None:
+        #         encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
+        #     encoder_extended_attention_mask = self.invert_attention_mask(
+        #         encoder_attention_mask
+        #     )
+        # else:
+        #     encoder_extended_attention_mask = None
 
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head

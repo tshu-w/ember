@@ -26,7 +26,7 @@ def main():
         subclass_mode_data=True,
         parser_kwargs={
             "epilog": """
-Availabed Modules: src.ViLTMatcher, src.MMTSMatcher
+Availabed Modules: src.MultimodalMatcher
 Availabed Datamodules: src.AliDataModule, src.WDCDataModule
             """,
             "formatter_class": argparse.RawDescriptionHelpFormatter,

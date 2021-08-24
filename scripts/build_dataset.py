@@ -7,13 +7,17 @@ import time
 from pathlib import Path
 from posixpath import expanduser
 from typing import Iterator, List, Optional, Tuple
+from copy import deepcopy
 
 import jieba
 import numpy as np
 import pandas as pd
 from gensim.corpora import Dictionary
 from gensim.similarities import Similarity, SparseMatrixSimilarity
+from pytorch_lightning import seed_everything
 from tqdm import tqdm
+
+seed_everything(123)
 
 os.makedirs(expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = expanduser("~/.cache/jieba")
@@ -315,8 +319,8 @@ def build_neg_pairs_for_cat(corpus, offers, attribute, num_neg):
 def build_dataset(
     corpus: pd.DataFrame,
     num: Optional[int] = None,
-    cate_name: Optional[str] = None,
     cate_level_name: Optional[str] = None,
+    cate_name: Optional[str] = None,
     num_pos: int = 3,
     num_neg: int = 9,
     path: Optional[Path] = None,
@@ -368,8 +372,8 @@ def build_dataset(
         append_to_json(df_pairs, path)
 
     if size is not None:
-        df = pd.read_json(path, lines=True)
-        sample = df.sample(n=min(size, len(df)))
+        _df = pd.read_json(path, lines=True)
+        sample = _df.sample(n=min(size, len(_df)))
         sample.to_json(path, orient="records", lines=True, force_ascii=False)
 
 
@@ -390,8 +394,42 @@ def main():
         names=column_names,
         engine="python",
     )
+    Path(f"../data/ali/dataset").mkdir(exist_ok=True, parents=True)
+    Path(f"../data/ali/testset").mkdir(exist_ok=True, parents=True)
 
-    build_dataset(df, num=200)
+    for prod_num in [200, 400, 800]:
+        for cate_level_name in [None, "男装"]:
+            for cate_name in [None]:
+                _cate_level_name = (
+                    ("_" + cate_level_name.replace("/", "_")) if cate_level_name else ""
+                )
+                _cate_name = ("_" + cate_name.replace("/", "_")) if cate_name else ""
+
+                data_path = Path(
+                    f"../data/ali/dataset/dataset{_cate_level_name}{_cate_name}_{prod_num}.json"
+                )
+                test_path = Path(
+                    f"../data/ali/testset/testset{_cate_level_name}{_cate_name}_{prod_num}.json"
+                )
+
+                if not data_path.exists():
+                    build_dataset(
+                        deepcopy(df),
+                        cate_level_name=cate_level_name,
+                        cate_name=cate_name,
+                        num=prod_num,
+                        path=data_path,
+                    )
+
+                if not test_path.exists():
+                    build_dataset(
+                        deepcopy(df),
+                        cate_level_name=cate_level_name,
+                        cate_name=cate_name,
+                        num=prod_num,
+                        path=test_path,
+                        size=4000,
+                    )
 
 
 if __name__ == "__main__":

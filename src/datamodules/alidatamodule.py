@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json
-import linecache
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -13,8 +11,7 @@ from PIL import Image, ImageFile
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
-from .build_dataset import build_dataset
-from src.utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, FEATURE_SIZE, train_test_split
+from .utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, FEATURE_SIZE, train_test_split
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -22,22 +19,34 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 class ALIDataset(Dataset):
     def __init__(
         self,
-        filename: Union[str, Path],
         dataframe: pd.DataFrame,
-        use_image: bool = False,
+        root: Path,
+        use_text: bool = True,
+        use_image: bool = True,
         use_pv_pairs: bool = False,
         feature_type: Optional[str] = None,
+        num_image_embeds: int = 1,
         transforms: Optional[Callable] = None,
     ) -> None:
         self.dataframe = dataframe
-        self.filename = filename
         self.len = len(dataframe)
 
+        self.use_text = use_text
         self.use_image = use_image
         self.use_pv_pairs = use_pv_pairs
 
         self.feature_type = feature_type
+        self.num_image_embeds = num_image_embeds
         self.transforms = transforms
+
+        if self.feature_type == "e2e":
+            self.image_dir = root / "images"
+            images = self.image_dir.glob("*.jpg")
+        else:
+            self.image_dir = root / f"{self.feature_type}_features"
+            images = self.image_dir.glob("*.pt")
+
+        self.ids = set([int(f.stem) for f in images])
 
     def __getitem__(self, index: int):
         raw = self.dataframe.iloc[index].to_dict()
@@ -50,21 +59,23 @@ class ALIDataset(Dataset):
         def serialize_pv_pairs(pv_pairs):
             return " ".join([" ".join(p.split("#:#")) for p in pv_pairs.split("#;#")])
 
-        root = Path(self.filename).parent
-
         for suffix in ["left", "right"]:
-            text = raw[f"title_{suffix}"]
+            if self.use_text:
+                text = raw[f"title_{suffix}"]
 
-            if self.use_pv_pairs:
-                pv_pairs = serialize_pv_pairs(raw[f"pv_pairs_{suffix}"])
-                text += " " + pv_pairs
+                if self.use_pv_pairs:
+                    pv_pairs = serialize_pv_pairs(raw[f"pv_pairs_{suffix}"])
+                    text += " " + pv_pairs
 
-            res["texts"].append(text)
+                res["texts"].append(text)
 
             if self.use_image:
+                id = raw[f"id_{suffix}"]
+
                 if self.feature_type == "e2e":
-                    image_path = root / "images" / (str(raw[f"id_{suffix}"]) + ".jpg")
-                    if image_path.exists():
+                    image_path = self.image_dir / f"{id}.jpg"
+
+                    if id in self.ids:
                         image = Image.open(image_path).convert("RGB")
                         image = self.transforms(image)
                     else:
@@ -73,14 +84,13 @@ class ALIDataset(Dataset):
                         )
                         image = torch.zeros_like(self.transforms(image))
                 else:
-                    image_path = (
-                        root
-                        / (str(self.feature_type) + "_features")
-                        / (str(raw[f"id_{suffix}"]) + ".pt")
-                    )
+                    image_path = self.image_dir / f"{id}.pt"
 
-                    if image_path.exists():
+                    if id in self.ids:
                         image = torch.load(image_path, map_location="cpu")
+
+                        if self.feature_type == "roi":
+                            image = image[: self.num_image_embeds, :]
                     else:
                         if self.feature_type == "grid":
                             image = torch.zeros(*FEATURE_SIZE[self.feature_type])
@@ -101,8 +111,11 @@ class AliDataModule(LightningDataModule):
         cate_level_name: Optional[ALI_CATE_LEVEL_NAME] = None,
         cate_name: Optional[ALI_CATE_NAME] = None,
         prod_num: int = 200,
-        use_image: bool = False,
+        use_text: bool = True,
+        use_image: bool = True,
         use_pv_pairs: bool = False,
+        feature_type: Literal["grid", "roi", "e2e"] = "grid",
+        num_image_embeds: int = 1,
         batch_size: int = 32,
         num_workers: int = 4,
     ):
@@ -113,8 +126,12 @@ class AliDataModule(LightningDataModule):
         self.cate_name = cate_name
         self.prod_num = prod_num
 
+        self.use_text = use_text
         self.use_image = use_image
-        self.use_pv_pairs = use_pv_pairs
+        self.use_pv_pairs = use_text and use_pv_pairs
+
+        self.feature_type = feature_type
+        self.num_image_embeds = num_image_embeds
 
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -122,35 +139,18 @@ class AliDataModule(LightningDataModule):
     @property
     def version(self):
         self._version = "_".join(
-            map(
-                str,
-                [
-                    self.cate_level_name,
-                    self.cate_name,
-                    self.prod_num,
-                    self.use_pv_pairs,
-                ],
-            )
+            map(str, [self.cate_level_name, self.cate_name, self.prod_num])
         )
 
+        if self.use_text:
+            self._version += f"_text_{self.use_pv_pairs}"
+
         if self.use_image:
-            self._version += f"_{self.feature_type}_{self.num_image_embeds}"
-        else:
-            self._version += f"_text"
+            self._version += f"_image_{self.feature_type}_{self.num_image_embeds}"
 
         return self._version
 
     def prepare_data(self) -> None:
-        column_names = [
-            "id",
-            "title",
-            "pict_url",
-            "cate_name",
-            "cate_level_name",
-            "pv_pairs",
-            "cluster_id",
-        ]
-
         cate_level_name = (
             ("_" + self.cate_level_name.replace("/", "_"))
             if self.cate_level_name
@@ -159,39 +159,12 @@ class AliDataModule(LightningDataModule):
         cate_name = ("_" + self.cate_name.replace("/", "_")) if self.cate_name else ""
 
         self.data_path = Path(
-            f"../data/ali/dataset{cate_level_name}{cate_name}_{self.prod_num}.json"
+            f"../data/ali/dataset/dataset{cate_level_name}{cate_name}_{self.prod_num}.json"
         )
         self.test_path = Path(
-            f"../data/ali/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
+            f"../data/ali/testset/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
         )
-
-        if not self.data_path.exists() or not self.test_path.exists():
-            df = pd.read_csv(
-                "../data/ali/same_product_train_sample_1wpid_USTC.txt",
-                header=None,
-                sep="@;@",
-                names=column_names,
-                engine="python",
-            )
-
-            if not self.data_path.exists():
-                build_dataset(
-                    df,
-                    cate_name=self.cate_name,
-                    cate_level_name=self.cate_level_name,
-                    num=self.prod_num,
-                    path=self.data_path,
-                )
-
-            if not self.test_path.exists():
-                build_dataset(
-                    df,
-                    cate_name=self.cate_name,
-                    cate_level_name=self.cate_level_name,
-                    num=self.prod_num,
-                    path=self.test_path,
-                    size=4000,
-                )
+        self.root = Path(f"../data/ali")
 
     def setup(self, stage: Optional[str]) -> None:
         if stage == "fit" or stage is None:
@@ -199,10 +172,12 @@ class AliDataModule(LightningDataModule):
 
             dataset = ALIDataset(
                 dataframe=dataframe,
-                filename=self.data_path,
+                root=self.root,
+                use_text=self.use_text,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
                 feature_type=self.feature_type,
+                num_image_embeds=self.num_image_embeds,
                 transforms=self.transforms,
             )
             self.data_train, self.data_valid = train_test_split(dataset, test_size=0.2)
@@ -212,10 +187,12 @@ class AliDataModule(LightningDataModule):
 
             self.data_test = ALIDataset(
                 dataframe=dataframe,
-                filename=self.test_path,
+                root=self.root,
+                use_text=self.use_text,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
                 feature_type=self.feature_type,
+                num_image_embeds=self.num_image_embeds,
                 transforms=self.transforms,
             )
 
@@ -229,6 +206,7 @@ class AliDataModule(LightningDataModule):
             shuffle=True,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            prefetch_factor=4,
         )
 
     def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -239,6 +217,7 @@ class AliDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            prefetch_factor=4,
         )
 
     def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -249,4 +228,5 @@ class AliDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            prefetch_factor=4,
         )

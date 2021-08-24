@@ -1,2 +1,2 @@
-from .modules import MMTSMatcher, ViLTMatcher
+from .models import MultimodalMatcher
 from .datamodules import AliDataModule, WDCDataModule
