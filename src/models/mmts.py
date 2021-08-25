@@ -106,7 +106,7 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
         inputs_embeds=None,
         # encoder_hidden_states=None,
         # encoder_attention_mask=None,
-        past_key_values=None,
+        # past_key_values=None,
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
@@ -147,9 +147,9 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
         device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         # past_key_values_length
-        past_key_values_length = (
-            past_key_values[0][0].shape[2] if past_key_values is not None else 0
-        )
+        # past_key_values_length = (
+        #     past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        # )
 
         if token_type_ids is None:
             token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
@@ -164,7 +164,7 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
 
         if attention_mask is None:
             attention_mask = torch.ones(
-                ((batch_size, seq_length + past_key_values_length)), device=device
+                ((batch_size, seq_length)), device=device
             )
 
         if input_modals is not None:
