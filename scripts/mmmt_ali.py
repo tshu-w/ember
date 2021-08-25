@@ -82,7 +82,7 @@ for prod_num in [200, 400, 800]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     # {
                     #     "text_image": "seperated",
@@ -106,7 +106,7 @@ for prod_num in [200, 400, 800]:
                         "use_text": False,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     {
                         "text_image": "seperated",
@@ -122,7 +122,7 @@ for prod_num in [200, 400, 800]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                 ]
 
@@ -160,7 +160,7 @@ for prod_num in [200, 400, 800]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     # {
                     #     "text_image": "seperated",
@@ -184,7 +184,7 @@ for prod_num in [200, 400, 800]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                 ]
 

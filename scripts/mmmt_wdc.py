@@ -81,7 +81,7 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     # {
                     #     "text_image": "seperated",
@@ -105,7 +105,7 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "use_text": False,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     {
                         "text_image": "seperated",
@@ -121,7 +121,7 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                 ]
 
@@ -159,7 +159,7 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                     # {
                     #     "text_image": "seperated",
@@ -183,7 +183,7 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "use_text": True,
                         "use_image": True,
                         "feature_type": "roi",
-                        "num_image_embeds": 9,
+                        "num_image_embeds": 4,
                     },
                 ]
 
