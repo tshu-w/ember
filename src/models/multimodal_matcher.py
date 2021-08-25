@@ -114,7 +114,7 @@ class MultimodalMatcher(LightningModule):
             max_length=max_length,
             num_image_embeds=num_image_embeds,
         )
-        if self.use_image:
+        if self.use_image and feature_type == "e2e":
             self.transforms = get_transforms()
         else:
             self.transforms = None
