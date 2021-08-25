@@ -88,7 +88,7 @@ def collate_fn(
         elif text_text == "dual":
             if images is not None:
                 for i in range(2):
-                    inputs[i]["input_modals"] = images[:, i].unsqueeze(dim=1)
+                    inputs[i]["input_modals"] = images[:, i : i + 1]
 
     elif text_image == "seperated":
         inputs = texts, images
