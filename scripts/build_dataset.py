@@ -394,8 +394,8 @@ def main():
         names=column_names,
         engine="python",
     )
-    Path(f"../data/ali/dataset").mkdir(exist_ok=True, parents=True)
-    Path(f"../data/ali/testset").mkdir(exist_ok=True, parents=True)
+    Path("../data/ali/dataset").mkdir(exist_ok=True, parents=True)
+    Path("../data/ali/testset").mkdir(exist_ok=True, parents=True)
 
     for prod_num in [200, 400, 800]:
         for cate_level_name in [None, "男装"]:
@@ -428,7 +428,7 @@ def main():
                         cate_name=cate_name,
                         num=prod_num,
                         path=test_path,
-                        size=4000,
+                        size=5000,
                     )
 
 
