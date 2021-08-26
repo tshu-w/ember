@@ -213,7 +213,7 @@ class MultimodalMatcher(LightningModule):
     def configure_callbacks(self):
         callbacks_args = {"monitor": "valid_f1", "mode": "max"}
 
-        early_stop = EarlyStopping(patience=5, **callbacks_args)
+        early_stop = EarlyStopping(patience=4, **callbacks_args)
         checkpoint = ModelCheckpoint(
             filename="{epoch:02d}-{valid_f1:.2%}", **callbacks_args
         )
