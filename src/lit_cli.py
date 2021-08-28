@@ -57,6 +57,8 @@ class LitCLI(LightningCLI):
             timestramp = datetime.now().strftime("%m%d-%H%M%S")
             version += "_" + timestramp
 
+        version = version.replace("/", "-")
+
         if self.config["trainer"]["resume_from_checkpoint"]:
             exp_path = Path(self.config["trainer"]["resume_from_checkpoint"]).parents[1]
             if os.path.commonprefix([exp_path.name, version or ""]):
