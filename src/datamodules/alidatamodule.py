@@ -208,8 +208,6 @@ class AliDataModule(LightningDataModule):
             shuffle=True,
             pin_memory=True,
             collate_fn=self.collate_fn,
-            persistent_workers=True,
-            prefetch_factor=4,
         )
 
     def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -220,8 +218,6 @@ class AliDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
-            persistent_workers=True,
-            prefetch_factor=4,
         )
 
     def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -232,6 +228,4 @@ class AliDataModule(LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
-            persistent_workers=True,
-            prefetch_factor=4,
         )
