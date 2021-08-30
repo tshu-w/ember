@@ -346,6 +346,8 @@ def build_dataset(
 
     if num is None:
         num = len(clusters_gt1)
+
+    num = min(num, len(clusters_gt1))
     random_clusters = random.sample(clusters_gt1, num)
 
     pos_pairs = build_positive_pairs(
