@@ -116,6 +116,7 @@ class AliDataModule(LightningDataModule):
         use_pv_pairs: bool = False,
         feature_type: Literal["grid", "roi", "e2e"] = "grid",
         num_image_embeds: int = 1,
+        out_domain: bool = False,
         batch_size: int = 32,
         num_workers: int = 4,
     ):
@@ -133,6 +134,8 @@ class AliDataModule(LightningDataModule):
         self.feature_type = feature_type
         self.num_image_embeds = num_image_embeds
 
+        self.out_domain = out_domain
+
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -145,10 +148,13 @@ class AliDataModule(LightningDataModule):
         if self.use_text:
             self._version += "_text"
             if self.use_pv_pairs:
-                self._version += "_pv_pairs"
+                self._version += "_pv-pairs"
 
         if self.use_image:
             self._version += f"_image_{self.feature_type}_{self.num_image_embeds}"
+
+        if self.out_domain:
+            self._version += "_out-domain"
 
         return self._version
 
@@ -159,37 +165,36 @@ class AliDataModule(LightningDataModule):
             else ""
         )
         cate_name = ("_" + self.cate_name.replace("/", "_")) if self.cate_name else ""
+        root = Path("../data/ali")
 
-        self.data_path = Path(
+        data_path = Path(
             f"../data/ali/dataset/dataset{cate_level_name}{cate_name}_{self.prod_num}.json"
         )
-        self.test_path = Path(
-            f"../data/ali/testset/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
+        dataframe = pd.read_json(data_path, lines=True)
+        dataset = ALIDataset(
+            dataframe=dataframe,
+            root=root,
+            use_text=self.use_text,
+            use_image=self.use_image,
+            use_pv_pairs=self.use_pv_pairs,
+            feature_type=self.feature_type,
+            num_image_embeds=self.num_image_embeds,
+            transforms=self.transforms,
         )
-        self.root = Path("../data/ali")
 
-    def setup(self, stage: Optional[str]) -> None:
-        if stage == "fit" or stage is None:
-            dataframe = pd.read_json(self.data_path, lines=True)
+        self.data_train, self.data_test = train_test_split(dataset, test_size=0.2)
+        self.data_train, self.data_valid = train_test_split(
+            self.data_train, test_size=0.2
+        )
 
-            dataset = ALIDataset(
-                dataframe=dataframe,
-                root=self.root,
-                use_text=self.use_text,
-                use_image=self.use_image,
-                use_pv_pairs=self.use_pv_pairs,
-                feature_type=self.feature_type,
-                num_image_embeds=self.num_image_embeds,
-                transforms=self.transforms,
+        if self.out_domain:
+            test_path = Path(
+                f"../data/ali/testset/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
             )
-            self.data_train, self.data_valid = train_test_split(dataset, test_size=0.2)
-
-        if stage == "test" or stage is None:
-            dataframe = pd.read_json(self.test_path, lines=True)
-
+            dataframe = pd.read_json(test_path, lines=True)
             self.data_test = ALIDataset(
                 dataframe=dataframe,
-                root=self.root,
+                root=root,
                 use_text=self.use_text,
                 use_image=self.use_image,
                 use_pv_pairs=self.use_pv_pairs,
