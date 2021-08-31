@@ -4,10 +4,10 @@
 import os
 import random
 import time
+from multiprocessing import Pool
 from pathlib import Path
 from posixpath import expanduser
 from typing import Iterator, List, Optional, Tuple
-from copy import deepcopy
 
 import jieba
 import numpy as np
@@ -17,27 +17,17 @@ from gensim.similarities import Similarity, SparseMatrixSimilarity
 from pytorch_lightning import seed_everything
 from tqdm import tqdm
 
-seed_everything(123)
-
 os.makedirs(expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = expanduser("~/.cache/jieba")
+
+DATA_PATH = Path("../data/ali/dataset")
+DATA_PATH.mkdir(exist_ok=True, parents=True)
+TEST_PATH = Path("../data/ali/testset")
+TEST_PATH.mkdir(exist_ok=True, parents=True)
 
 
 def preprocess(row):
     return row
-
-
-def append_to_json(df: pd.DataFrame, file_path) -> None:
-    if not df.empty:
-        df.to_json(
-            "tmp.json", lines=True, orient="records", force_ascii=False,
-        )
-
-        with open(file_path, "a") as fo:
-            with open("tmp.json", "r") as fi:
-                fo.writelines(fi.readlines())
-
-        os.remove("tmp.json")
 
 
 def get_df_pairs(
@@ -318,15 +308,14 @@ def build_neg_pairs_for_cat(corpus, offers, attribute, num_neg):
 
 def build_dataset(
     corpus: pd.DataFrame,
-    num: Optional[int] = None,
+    cluster_num: Optional[int] = None,
     cate_level_name: Optional[str] = None,
     cate_name: Optional[str] = None,
     num_pos: int = 1,
     num_neg: int = 3,
-    path: Optional[Path] = None,
-    path_prefix: str = "../data/dataset",
-    size: Optional[int] = None,
 ):
+    seed_everything(123)
+
     corpus = (
         corpus[corpus["cate_level_name"] == cate_level_name]
         if cate_level_name
@@ -344,25 +333,27 @@ def build_dataset(
     gt1_bool = corpus["cluster_id"].value_counts() > 1
     clusters_gt1 = list(gt1_bool[gt1_bool].index)
 
-    if num is None:
-        num = len(clusters_gt1)
+    if cluster_num is None:
+        cluster_num = len(clusters_gt1)
 
-    num = min(num, len(clusters_gt1))
-    random_clusters = random.sample(clusters_gt1, num)
+    _cate_level_name = (
+        ("_" + cate_level_name.replace("/", "_")) if cate_level_name else ""
+    )
+    _cate_name = ("_" + cate_name.replace("/", "_")) if cate_name else ""
+    filename = f"{_cate_level_name}{_cate_name}_{cluster_num}.json"
+
+    ###########################################################################
+    #                                 dataset                                 #
+    ###########################################################################
+    random_clusters = random.sample(clusters_gt1, min(cluster_num, len(clusters_gt1)))
+    df = pd.DataFrame()
 
     pos_pairs = build_positive_pairs(
         corpus, random_clusters, attribute="title_tokenized", num_pos=num_pos,
     )
 
-    if path is None:
-        cate_level_name = (
-            ("_" + cate_level_name.replace("/", "_")) if cate_level_name else ""
-        )
-        cate_name = ("_" + cate_name.replace("/", "_")) if cate_name else ""
-        path = Path(f"{path_prefix}{cate_level_name}{cate_name}_{num}.json")
-
     for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
-        append_to_json(df_pairs, path)
+        df = df.append(df_pairs, ignore_index=True)
 
     offers_for_negatives = [x[0] for x in pos_pairs]
 
@@ -371,12 +362,42 @@ def build_dataset(
     )
 
     for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
-        append_to_json(df_pairs, path)
+        df = df.append(df_pairs, ignore_index=True)
 
-    if size is not None:
-        _df = pd.read_json(path, lines=True)
-        sample = _df.sample(n=min(size, len(_df)))
-        sample.to_json(path, orient="records", lines=True, force_ascii=False)
+    path = DATA_PATH / f"dataset{filename}"
+    df.to_json(path, lines=True, orient="records", force_ascii=False)
+
+    dataset_len = len(df)
+
+    ###########################################################################
+    #                                 testset                                 #
+    ###########################################################################
+    remained_clusters = [id for id in clusters_gt1 if id not in random_clusters]
+
+    random_clusters = random.sample(
+        remained_clusters, min(cluster_num, len(remained_clusters))
+    )
+    df = pd.DataFrame()
+
+    pos_pairs = build_positive_pairs(
+        corpus, random_clusters, attribute="title_tokenized", num_pos=num_pos,
+    )
+
+    for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
+        df = df.append(df_pairs, ignore_index=True)
+
+    offers_for_negatives = [x[0] for x in pos_pairs]
+
+    neg_pairs = build_neg_pairs_for_cat(
+        corpus, offers_for_negatives, attribute="title_tokenized", num_neg=num_neg,
+    )
+
+    for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
+        df = df.append(df_pairs, ignore_index=True)
+
+    path = TEST_PATH / f"testset{filename}"
+    df = df.sample(n=min(dataset_len // 5, len(df)))
+    df.to_json(path, orient="records", lines=True, force_ascii=False)
 
 
 def main():
@@ -396,43 +417,27 @@ def main():
         names=column_names,
         engine="python",
     )
-    Path("../data/ali/dataset").mkdir(exist_ok=True, parents=True)
-    Path("../data/ali/testset").mkdir(exist_ok=True, parents=True)
+    pool = Pool(processes=12)
 
-    for prod_num in [200, 400, 800]:
-        for cate_level_name in [None, "男装"]:
-            for cate_name in [None]:
-                _cate_level_name = (
-                    ("_" + cate_level_name.replace("/", "_")) if cate_level_name else ""
-                )
-                _cate_name = ("_" + cate_name.replace("/", "_")) if cate_name else ""
+    for cluster_num in [200, 400, 800]:
+        for cate_level_name, cate_name in [
+            (None, None),
+            ("女装/女士精品", None),
+            ("女装/女士精品", "连衣裙"),
+            ("女装/女士精品", "T恤"),
+        ]:
+            pool.apply_async(
+                build_dataset,
+                kwds={
+                    "corpus": df.copy(),
+                    "cate_level_name": cate_level_name,
+                    "cate_name": cate_name,
+                    "cluster_num": cluster_num,
+                },
+            )
 
-                data_path = Path(
-                    f"../data/ali/dataset/dataset{_cate_level_name}{_cate_name}_{prod_num}.json"
-                )
-                test_path = Path(
-                    f"../data/ali/testset/testset{_cate_level_name}{_cate_name}_{prod_num}.json"
-                )
-
-                if not data_path.exists():
-                    build_dataset(
-                        deepcopy(df),
-                        cate_level_name=cate_level_name,
-                        cate_name=cate_name,
-                        num=prod_num,
-                        path=data_path,
-                    )
-
-                if not test_path.exists():
-                    build_dataset(
-                        deepcopy(df),
-                        cate_level_name=cate_level_name,
-                        cate_name=cate_name,
-                        num=prod_num,
-                        path=test_path,
-                        size=5000,
-                    )
-
+    pool.close()
+    pool.join()
 
 if __name__ == "__main__":
     main()
