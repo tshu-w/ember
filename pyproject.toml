@@ -11,7 +11,7 @@ line_length = 120
 
 [tool.pyright]
 # https://github.com/microsoft/pyright
-venvPath = "../../.local/share/anaconda3/envs"
+venvPath = "../../.local/share/conda/envs"
 venv = "multimodalER"
 typeCheckingMode = "off"
 UseLibraryCodeForTypes = false
