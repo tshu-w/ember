@@ -55,146 +55,135 @@ EXPT_TMP = Template(
 EXPTS = []
 SEEDS = [123, 42, 1337]
 
-for prod_num in [200, 400, 800]:
-    for cate_level_name in ["null", "男装"]:
-        for cate_name in ["null"]:
-            for seed in SEEDS:
-                kwargs_list = [
-                    {
-                        "text_image": "aligned",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": False,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "aligned",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "aligned",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "roi",
-                        "num_image_embeds": 4,
-                    },
-                    # {
-                    #     "text_image": "seperated",
-                    #     "text_text": "cross",
-                    #     "use_text": True,
-                    #     "use_image": False,
-                    #     "feature_type": "grid",
-                    #     "num_image_embeds": 1,
-                    # },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "cross",
-                        "use_text": False,
-                        "use_image": True,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "cross",
-                        "use_text": False,
-                        "use_image": True,
-                        "feature_type": "roi",
-                        "num_image_embeds": 4,
-                    },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "cross",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "roi",
-                        "num_image_embeds": 4,
-                    },
-                ]
+for prod_num in [20, 50, 100]:
+    for cate_level_name, cate_name in [
+        ("null", "null"),
+        ("女装_女士精品", "null"),
+        ("女装_女士精品", "连衣裙"),
+        ("女装_女士精品", "T恤"),
+    ]:
+        for seed in SEEDS:
+            kwargs_list = [
+                {
+                    "text_image": "aligned",
+                    "text_text": "cross",
+                    "use_text": True,
+                    "use_image": False,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "aligned",
+                    "text_text": "cross",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "aligned",
+                    "text_text": "cross",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid-roi",
+                    "num_image_embeds": 12,
+                },
+                # {
+                #     "text_image": "seperated",
+                #     "text_text": "cross",
+                #     "use_text": True,
+                #     "use_image": False,
+                #     "feature_type": "grid",
+                #     "num_image_embeds": 1,
+                # },
+                {
+                    "text_image": "seperated",
+                    "text_text": "cross",
+                    "use_text": False,
+                    "use_image": True,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "seperated",
+                    "text_text": "cross",
+                    "use_text": False,
+                    "use_image": True,
+                    "feature_type": "grid-roi",
+                    "num_image_embeds": 12,
+                },
+                {
+                    "text_image": "seperated",
+                    "text_text": "cross",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "seperated",
+                    "text_text": "cross",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid-roi",
+                    "num_image_embeds": 12,
+                },
+                {
+                    "text_image": "aligned",
+                    "text_text": "dual",
+                    "use_text": True,
+                    "use_image": False,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "aligned",
+                    "text_text": "dual",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "aligned",
+                    "text_text": "dual",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid-roi",
+                    "num_image_embeds": 12,
+                },
+                # {
+                #     "text_image": "seperated",
+                #     "text_text": "dual",
+                #     "use_text": True,
+                #     "use_image": False,
+                #     "feature_type": "grid",
+                #     "num_image_embeds": 1,
+                # },
+                {
+                    "text_image": "seperated",
+                    "text_text": "dual",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid",
+                    "num_image_embeds": 1,
+                },
+                {
+                    "text_image": "seperated",
+                    "text_text": "dual",
+                    "use_text": True,
+                    "use_image": True,
+                    "feature_type": "grid-roi",
+                    "num_image_embeds": 12,
+                },
+            ]
 
-                for kwarg in kwargs_list:
-                    kwarg["cate_level_name"] = cate_level_name
-                    kwarg["cate_name"] = cate_name
-                    kwarg["prod_num"] = prod_num
-                    kwarg["seed"] = seed
-                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
-
-for prod_num in [200, 400, 800]:
-    for cate_level_name in ["null", "男装"]:
-        for cate_name in ["null"]:
-            for seed in SEEDS:
-                kwargs_list = [
-                    {
-                        "text_image": "aligned",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": False,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "aligned",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "aligned",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "roi",
-                        "num_image_embeds": 4,
-                    },
-                    # {
-                    #     "text_image": "seperated",
-                    #     "text_text": "dual",
-                    #     "use_text": True,
-                    #     "use_image": False,
-                    #     "feature_type": "grid",
-                    #     "num_image_embeds": 1,
-                    # },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "grid",
-                        "num_image_embeds": 1,
-                    },
-                    {
-                        "text_image": "seperated",
-                        "text_text": "dual",
-                        "use_text": True,
-                        "use_image": True,
-                        "feature_type": "roi",
-                        "num_image_embeds": 4,
-                    },
-                ]
-
-                for kwarg in kwargs_list:
-                    kwarg["cate_level_name"] = cate_level_name
-                    kwarg["cate_name"] = cate_name
-                    kwarg["prod_num"] = prod_num
-                    kwarg["seed"] = seed
-                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
-
+            for kwarg in kwargs_list:
+                kwarg["cate_level_name"] = cate_level_name
+                kwarg["cate_name"] = cate_name
+                kwarg["prod_num"] = prod_num
+                kwarg["seed"] = seed
+                EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
@@ -242,7 +231,7 @@ def run(exp_args, args):
     else:
         cmd = f"""./run.py \\
         --seed_everything {exp_args['seed']} \\
-        --trainer.gpus {gpu}, \\
+        --trainer.gpus {gpu}, --trainer.default_root_dir size \\
         --model '{exp_args['model']}' \\
         --data '{exp_args['data']}' \\
         >{outfile} 2>{errfile}

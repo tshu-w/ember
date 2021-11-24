@@ -123,20 +123,6 @@ for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
                         "feature_type": "roi",
                         "num_image_embeds": 4,
                     },
-                ]
-
-                for kwarg in kwargs_list:
-                    kwarg["cate"] = cate
-                    kwarg["model_name"] = model_name
-                    kwarg["training_size"] = training_size
-                    kwarg["seed"] = seed
-                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwarg))
-
-for model_name in ["roberta-base", "uclanlp/visualbert-vqa-coco-pre"]:
-    for training_size in ["small", "medium", "large"]:
-        for cate in ["cameras", "computers", "shoes", "watches", "all"]:
-            for seed in SEEDS:
-                kwargs_list = [
                     {
                         "text_image": "aligned",
                         "text_text": "dual",
@@ -228,6 +214,8 @@ def run(exp_args, args):
 
     exp_name = "_".join(map(str, exp_args["model"]["init_args"].values()))
     exp_name += "_" + "_".join(map(str, exp_args["data"]["init_args"].values()))
+
+    exp_name = exp_name.replace("/", "-")
 
     outfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_out.log"
     errfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_err.log"
