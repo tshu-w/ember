@@ -7,4 +7,3 @@ FILE="./results/mmtsmatcher_wdcdatamodule/*/config.yaml"
 for f in $FILE; do
     ./run.py --config $f --fit false --data.init_args.extended false --trainer.gpus 4, --trainer.default_root_dir tests
 done
-

@@ -7,4 +7,3 @@ FILE="./results/multimodalmatcher_alidatamodule/*/config.yaml"
 for f in $FILE; do
     ./run.py --config $f --fit false --trainer.gpus 5, --trainer.default_root_dir tests --data.init_args.out_domain true
 done
-

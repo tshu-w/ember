@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from typing import Literal, Optional
 
@@ -22,7 +21,8 @@ class Fusion(nn.Module):
         self.output_dim = output_dim or input_dim
 
         self.fusion = nn.Sequential(
-            nn.Linear(self.input_dim * 4, self.output_dim), activation,
+            nn.Linear(self.input_dim * 4, self.output_dim),
+            activation,
         )
 
     def forward(self, a: torch.Tensor, b: torch.Tensor):
@@ -89,7 +89,9 @@ class ImageEncoder(nn.Module):
 
 class TextMatcher(nn.Module):
     def __init__(
-        self, model: nn.Module, type: Literal["cross", "dual"],
+        self,
+        model: nn.Module,
+        type: Literal["cross", "dual"],
     ):
         super().__init__()
 
@@ -119,7 +121,10 @@ class TextMatcher(nn.Module):
 
 class ImageMatcher(nn.Module):
     def __init__(
-        self, model: nn.Module, input_dim: int, output_dim: Optional[int] = None,
+        self,
+        model: nn.Module,
+        input_dim: int,
+        output_dim: Optional[int] = None,
     ):
         super().__init__()
 

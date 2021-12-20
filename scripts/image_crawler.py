@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import itertools
 import json
@@ -13,7 +12,6 @@ from collections import Counter, OrderedDict
 from difflib import SequenceMatcher
 from logging.config import dictConfig
 from pathlib import Path
-from typing import List
 from urllib.parse import quote, urlparse
 
 import lxml.html
@@ -126,7 +124,9 @@ def is_image(filename: str) -> bool:
 
 
 def download_image(
-    url: str, filename: str, header: Headers = Headers(headers=True),
+    url: str,
+    filename: str,
+    header: Headers = Headers(headers=True),
 ) -> None:
     r = requests.get(
         url, stream=True, headers=header.generate(), timeout=10, verify=False
@@ -221,7 +221,7 @@ class ImageCrawler:
                 except Exception as e:
                     self._logger.warning(e)
 
-    def get_image(self, pid: int, ptitle: str = "") -> List[str]:
+    def get_image(self, pid: int, ptitle: str = "") -> list[str]:
         url = str(self._id_url_mapping.loc[pid].item())
         self._logger.info(f"pid: {pid} url: {url} ptitle: {ptitle}")
 
@@ -275,10 +275,7 @@ class ImageCrawler:
                     if text and text != "null":
                         scores.append(
                             max(
-                                [
-                                    SequenceMatcher(None, text, t).ratio()
-                                    for t in img_text
-                                ]
+                                SequenceMatcher(None, text, t).ratio() for t in img_text
                             )
                         )
 
@@ -297,10 +294,8 @@ class ImageCrawler:
                         if ptitle:
                             scores.append(
                                 max(
-                                    [
-                                        SequenceMatcher(None, ptitle, t).ratio()
-                                        for t in img_text
-                                    ]
+                                    SequenceMatcher(None, ptitle, t).ratio()
+                                    for t in img_text
                                 )
                             )
 
@@ -365,7 +360,6 @@ def check_images():
         for f in itertools.chain(
             sorted(training_sets.rglob("*.json.gz")), [gold_standards]
         ):
-            cnts = Counter()
             df = pd.read_json(f, lines=True)
             total = len(df)
             cnt = df.apply(

@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -220,7 +219,7 @@ class WDCDataModule(LightningDataModule):
 
     def train_dataloader(
         self,
-    ) -> Union[DataLoader, List[DataLoader], Dict[str, DataLoader]]:
+    ) -> Union[DataLoader, list[DataLoader], dict[str, DataLoader]]:
         return DataLoader(
             dataset=self.data_train,
             batch_size=self.batch_size,
@@ -230,7 +229,7 @@ class WDCDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+    def val_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
         return DataLoader(
             dataset=self.data_valid,
             batch_size=self.batch_size,
@@ -240,7 +239,7 @@ class WDCDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+    def test_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
         return DataLoader(
             dataset=self.data_test,
             batch_size=self.batch_size,

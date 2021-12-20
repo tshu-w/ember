@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -36,7 +35,7 @@ class ViLTModelOutput(ModelOutput):
     masks: torch.FloatTensor = None
     text_hidden_state: torch.FloatTensor = None
     image_hidden_state: torch.FloatTensor = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
+    attentions: Optional[tuple[torch.FloatTensor]] = None
 
 
 class Pooler(nn.Module):

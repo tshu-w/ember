@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import argparse
 import json
@@ -45,7 +44,7 @@ EXPT_TMP = Template(
 }"""
 )
 EXPTS = []
-SEEDS = [123, 42] #, 1337]
+SEEDS = [123, 42]  # , 1337]
 
 for cate_level_name in ["null", "男装"]:
     for cate_name in ["null"]:
@@ -153,7 +152,11 @@ if __name__ == "__main__":
 
     for expt in EXPTS:
         pool.apply_async(
-            run, kwds={"exp_args": json.loads(expt, strict=False), "args": args,},
+            run,
+            kwds={
+                "exp_args": json.loads(expt, strict=False),
+                "args": args,
+            },
         )
 
     pool.close()

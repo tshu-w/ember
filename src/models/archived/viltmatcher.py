@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 
 from functools import partial
@@ -57,7 +56,9 @@ def get_transforms(size=800):
 
 
 def collate_fn(
-    batch, tokenizer: PreTrainedTokenizer, max_text_length: Optional[int] = 256,
+    batch,
+    tokenizer: PreTrainedTokenizer,
+    max_text_length: Optional[int] = 256,
 ):
     texts = [x["texts"] for x in batch]
     images = [x["images"] for x in batch]
@@ -150,7 +151,10 @@ class ViLTMatcher(LightningModule):
         self.test_metrics = metrics.clone(prefix="test_")
 
     def forward(self, x, labels):
-        text1, text2, = x["text1"], x["text2"]
+        text1, text2, = (
+            x["text1"],
+            x["text2"],
+        )
         image1, image2 = x["image1"], x["image2"]
 
         if isinstance(self.model, ViLT):

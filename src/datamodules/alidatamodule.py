@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, Union
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -46,7 +45,7 @@ class ALIDataset(Dataset):
             self.image_dir = root / f"{self.feature_type}_features"
             images = self.image_dir.glob("*.pt")
 
-        self.ids = set([int(f.stem) for f in images])
+        self.ids = {int(f.stem) for f in images}
 
     def __getitem__(self, index: int):
         raw = self.dataframe.iloc[index].to_dict()
@@ -205,7 +204,7 @@ class AliDataModule(LightningDataModule):
 
     def train_dataloader(
         self,
-    ) -> Union[DataLoader, List[DataLoader], Dict[str, DataLoader]]:
+    ) -> Union[DataLoader, list[DataLoader], dict[str, DataLoader]]:
         return DataLoader(
             dataset=self.data_train,
             batch_size=self.batch_size,
@@ -215,7 +214,7 @@ class AliDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+    def val_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
         return DataLoader(
             dataset=self.data_valid,
             batch_size=self.batch_size,
@@ -225,7 +224,7 @@ class AliDataModule(LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    def test_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
+    def test_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
         return DataLoader(
             dataset=self.data_test,
             batch_size=self.batch_size,

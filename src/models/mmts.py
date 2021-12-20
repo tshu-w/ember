@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import torch
 import torch.nn as nn
-from transformers.modeling_utils import ModuleUtilsMixin
 from transformers.modeling_outputs import (
     BaseModelOutputWithPoolingAndCrossAttentions,
     SequenceClassifierOutput,
 )
+from transformers.modeling_utils import ModuleUtilsMixin
 
 
 class ModalEmbeddings(nn.Module):
@@ -77,7 +76,7 @@ class ModalEmbeddings(nn.Module):
         return embeddings
 
 
-class MMTSConfig(object):
+class MMTSConfig:
     def __init__(self, config, num_labels=None, modal_hidden_size=2048):
         self.__dict__ = config.__dict__
         self.modal_hidden_size = modal_hidden_size
@@ -163,9 +162,7 @@ class MMTSModel(nn.Module, ModuleUtilsMixin):
         )
 
         if attention_mask is None:
-            attention_mask = torch.ones(
-                ((batch_size, seq_length)), device=device
-            )
+            attention_mask = torch.ones(((batch_size, seq_length)), device=device)
 
         if input_modals is not None:
             modal_embeddings = self.modal_encoder(input_modals)

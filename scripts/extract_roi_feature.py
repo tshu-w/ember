@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import argparse
 import warnings
@@ -110,7 +109,8 @@ def get_model(cfg):
 def extract_roi_features(args, cfg, model):
     dataset = DetectionImageDataset(args.input, cfg)
     aug = T.ResizeShortestEdge(
-        [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST], cfg.INPUT.MAX_SIZE_TEST,
+        [cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST],
+        cfg.INPUT.MAX_SIZE_TEST,
     )
     collate_fn = partial(collate, aug=aug)
     dataloader = DataLoader(

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import json
 from functools import partial
@@ -26,8 +25,9 @@ from transformers import (
     PreTrainedTokenizer,
 )
 
-from .mmts import MMTSConfig, MMTSForSequenceClassification
 from src.utils import FEATURE_SIZE
+
+from .mmts import MMTSConfig, MMTSForSequenceClassification
 
 
 def get_transforms():

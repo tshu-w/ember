@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import argparse
 import warnings
@@ -89,7 +88,8 @@ def extract_grid_features(args):
             features = model(batch["images"].cuda())
             for i, x in enumerate(batch["meta"]):
                 torch.save(
-                    features[i, :], Path(args.output) / f"{x['filename'].stem}.pt",
+                    features[i, :],
+                    Path(args.output) / f"{x['filename'].stem}.pt",
                 )
 
 

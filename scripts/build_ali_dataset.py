@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import os
 import random
@@ -7,7 +6,7 @@ import time
 from multiprocessing import Pool
 from pathlib import Path
 from posixpath import expanduser
-from typing import Iterator, List, Optional, Tuple
+from typing import Iterator, Optional
 
 import jieba
 import numpy as np
@@ -52,7 +51,7 @@ def rename_column(s: str) -> str:
 
 
 def dataset_gen(
-    corpus: pd.DataFrame, pairs: List[Tuple], label: int
+    corpus: pd.DataFrame, pairs: list[tuple], label: int
 ) -> Iterator[pd.DataFrame]:
     """Yield dataset pairs."""
     for pair in pairs:
@@ -349,7 +348,10 @@ def build_dataset(
     df = pd.DataFrame()
 
     pos_pairs = build_positive_pairs(
-        corpus, random_clusters, attribute="title_tokenized", num_pos=num_pos,
+        corpus,
+        random_clusters,
+        attribute="title_tokenized",
+        num_pos=num_pos,
     )
 
     for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
@@ -358,7 +360,10 @@ def build_dataset(
     offers_for_negatives = [x[0] for x in pos_pairs]
 
     neg_pairs = build_neg_pairs_for_cat(
-        corpus, offers_for_negatives, attribute="title_tokenized", num_neg=num_neg,
+        corpus,
+        offers_for_negatives,
+        attribute="title_tokenized",
+        num_neg=num_neg,
     )
 
     for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
@@ -380,7 +385,10 @@ def build_dataset(
     df = pd.DataFrame()
 
     pos_pairs = build_positive_pairs(
-        corpus, random_clusters, attribute="title_tokenized", num_pos=num_pos,
+        corpus,
+        random_clusters,
+        attribute="title_tokenized",
+        num_pos=num_pos,
     )
 
     for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
@@ -389,7 +397,10 @@ def build_dataset(
     offers_for_negatives = [x[0] for x in pos_pairs]
 
     neg_pairs = build_neg_pairs_for_cat(
-        corpus, offers_for_negatives, attribute="title_tokenized", num_neg=num_neg,
+        corpus,
+        offers_for_negatives,
+        attribute="title_tokenized",
+        num_neg=num_neg,
     )
 
     for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
@@ -438,6 +449,7 @@ def main():
 
     pool.close()
     pool.join()
+
 
 if __name__ == "__main__":
     main()

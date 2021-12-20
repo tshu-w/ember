@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import json
 from functools import partial
@@ -27,6 +26,7 @@ from transformers import (
 )
 
 from src.utils import FEATURE_SIZE
+
 
 def get_transforms():
     return transforms.Compose(

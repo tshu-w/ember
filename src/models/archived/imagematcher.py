@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from functools import partial
 from itertools import chain
@@ -15,12 +14,14 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.optim import AdamW
 from torchmetrics import F1, MetricCollection, Precision, Recall
 
-from .mmtsmatcher import ImageEncoder, get_transforms
 from src.utils import FEATURE_SIZE
+
+from .mmtsmatcher import ImageEncoder, get_transforms
 
 
 def collate_fn(
-    batch, num_image_embeds: int = 1,
+    batch,
+    num_image_embeds: int = 1,
 ):
     batch_size = len(batch)
     images = [x["images"] for x in batch]
