@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Modified from: https://github.com/allenai/allennlp/blob/main/allennlp/commands/print_results.py
 
 import argparse
 import json
 import os
-from signal import signal, SIGPIPE, SIG_DFL
+from signal import SIG_DFL, SIGPIPE, signal
 
 signal(SIGPIPE, SIG_DFL)
 
@@ -40,7 +39,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "path", type=str, help="Path to recursively search for experiment directories.",
+        "path",
+        type=str,
+        help="Path to recursively search for experiment directories.",
     )
     parser.add_argument(
         "-k",

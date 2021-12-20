@@ -1,116 +1,128 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import json
 import logging
-import os
 from collections import ChainMap
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from pytorch_lightning.loggers import LoggerCollection
+import shtab
+from pytorch_lightning.loggers import LightningLoggerBase, LoggerCollection
+from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities.cli import LightningArgumentParser, LightningCLI
 from rich import print
 
 
 class LitCLI(LightningCLI):
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        parser.add_argument(
-            "--fit", type=bool, default=True, help="Whether fit or not."
-        )
-        parser.add_argument(
-            "--shared_attrs", nargs="+", default=["collate_fn", "transforms"],
-        )
-
         for arg in ["use_text", "use_image", "feature_type", "num_image_embeds"]:
             parser.link_arguments(f"model.init_args.{arg}", f"data.init_args.{arg}")
 
-    def before_instantiate_classes(self) -> None:
-        if not self.config["fit"]:
-            self.config["trainer"]["max_steps"] = 0
+    def modify_logger(self, logger: LightningLoggerBase, exp_name: str, version: str):
+        if exp_name and hasattr(logger, "_name"):
+            logger._name = exp_name
 
-    def before_fit(self) -> None:
-        # share attributes between module and datamodule
-        if self.datamodule is not None:
-            for attr in self.config["shared_attrs"]:
-                if hasattr(self.model, attr) and not hasattr(self.datamodule, attr):
-                    setattr(self.datamodule, attr, getattr(self.model, attr))
+        if version and hasattr(logger, "_version"):
+            logger._version = version
 
-                if hasattr(self.datamodule, attr) and not hasattr(self.model, attr):
-                    setattr(self.model, attr, getattr(self.datamodule, attr))
+    def before_run(self):
+        model_name = type(self.model).__name__
+        datamodule_name = type(self.datamodule).__name__ if self.datamodule else ""
+        exp_name = "_".join(filter(None, [model_name, datamodule_name]))
 
-        # change the name (and version) of the logger based on the modules' name and
-        # version
-        exp_name = type(self.model).__name__
-        exp_name += "_" + (type(self.datamodule).__name__ if self.datamodule else "")
+        model_version = (
+            self.model.get_version() if hasattr(self.model, "get_version") else ""
+        )
+        datamodule_version = (
+            self.datamodule.get_version()
+            if hasattr(self.datamodule, "get_version")
+            else ""
+        )
+        seed = str(self.seed_everything_default)
+        timestramp = datetime.now().strftime("%m%d-%H%M%S")
+        version = "_".join(
+            filter(None, [model_version, datamodule_version, seed, timestramp])
+        )
+        log_dir = (
+            f"{self.trainer.default_root_dir}/{exp_name.lower()}/{version.lower()}"
+        )
 
-        version = ""
-        if hasattr(self.model, "get_version"):
-            version = self.model.get_version()
+        print(f"Experiment: [bold]{exp_name}[/bold]")
+        print(f"Version:    [bold]{version}[/bold]")
+        print(f"Log Dir:    [bold]{log_dir}[/bold]")
 
-        if self.datamodule is not None and hasattr(self.datamodule, "version"):
-            version += ("_" if version else "") + self.datamodule.version
+        if isinstance(self.trainer.logger, LoggerCollection):
+            for logger in self.trainer.logger:
+                self.modify_logger(logger, exp_name.lower(), version.lower())
+        else:
+            self.modify_logger(self.trainer.logger, exp_name.lower(), version.lower())
 
-        version += "_" + str(self.config["seed_everything"])
+        if self.subcommand in ["validate", "test"]:
+            self.config_init[self.subcommand]["verbose"] = False
 
-        if version and self.config["fit"]:
-            timestramp = datetime.now().strftime("%m%d-%H%M%S")
-            version += "_" + timestramp
+    before_fit = before_validate = before_test = before_run
 
-        version = version.replace("/", "-")
-
-        if self.config["trainer"]["resume_from_checkpoint"]:
-            exp_path = Path(self.config["trainer"]["resume_from_checkpoint"]).parents[1]
-            if os.path.commonprefix([exp_path.name, version or ""]):
-                version = exp_path.name
-
-        print(f"Experiment Name: [bold]{exp_name}[/bold]")
-        print(f"Version: [bold]{version}[/bold]")
-
-        if not isinstance(self.trainer.logger, LoggerCollection):
-            self.trainer.logger._name = exp_name.lower()
+    def after_run(self):
+        if self.trainer.state.fn == TrainerFn.FITTING:
             if (
-                hasattr(self.trainer.logger, "_version")
-                and version
-                and not os.getenv("PL_EXP_VERSION")
+                self.trainer.checkpoint_callback
+                and self.trainer.checkpoint_callback.best_model_path
             ):
-                self.trainer.logger._version = version.lower()
+                ckpt_path = self.trainer.checkpoint_callback.best_model_path
+                # Disable useless logging
+                logging.getLogger("pytorch_lightning.utilities.distributed").setLevel(
+                    logging.WARNING
+                )
+                logging.getLogger("pytorch_lightning.accelerators.gpu").setLevel(
+                    logging.WARNING
+                )
 
-        if (
-            self.config["trainer"]["auto_lr_find"]
-            or self.config["trainer"]["auto_scale_batch_size"]
-        ):
-            self.trainer.tune(**self.fit_kwargs)
+                self.trainer.callbacks = []
+                fn_kwargs = {
+                    "model": self.model,
+                    "datamodule": self.datamodule,
+                    "ckpt_path": ckpt_path,
+                    "verbose": False,
+                }
+                has_val_loader = (
+                    self.trainer._data_connector._val_dataloader_source.is_defined()
+                )
+                has_test_loader = (
+                    self.trainer._data_connector._test_dataloader_source.is_defined()
+                )
 
-    def after_fit(self):
-        ckpt_path = None
+                val_results = (
+                    self.trainer.validate(**fn_kwargs) if has_val_loader else []
+                )
+                test_results = self.trainer.test(**fn_kwargs) if has_test_loader else []
 
-        if self.trainer.checkpoint_callback.best_model_path:
-            # HACK: https://github.com/PyTorchLightning/pytorch-lightning/discussions/8759
-            ckpt_path = self.trainer.checkpoint_callback.best_model_path
-        elif self.config["config"]:
-            config_dir = Path(self.config["config"][0]()).parent
-            checkpoint_paths = list(config_dir.rglob("*.ckpt"))
+                results = dict(ChainMap(*val_results, *test_results))
+        else:
+            results = self.trainer.logged_metrics
 
-            if len(checkpoint_paths) == 1:
-                ckpt_path = checkpoint_paths[0]
+        if results:
+            results_str = json.dumps(results, ensure_ascii=False, indent=2)
+            print(results_str)
 
-        if ckpt_path:
-            # Disable useless logger after fit
-            logging.getLogger("pytorch_lightning.utilities.distributed").setLevel(
-                logging.WARNING
-            )
-            logging.getLogger("pytorch_lightning.accelerators.gpu").setLevel(
-                logging.WARNING
-            )
+            metrics_file = Path(self.trainer.log_dir) / "metrics.json"
+            with metrics_file.open("w") as f:
+                f.write(results_str)
 
-            val_results = self.trainer.validate(ckpt_path=ckpt_path, verbose=False)
-            test_results = self.trainer.test(ckpt_path=ckpt_path, verbose=False)
+    after_fit = after_validate = after_test = after_run
 
-            results = dict(ChainMap(*val_results, *test_results))
+    def setup_parser(
+        self,
+        add_subcommands: bool,
+        main_kwargs: dict[str, Any],
+        subparser_kwargs: dict[str, Any],
+    ) -> None:
+        """Initialize and setup the parser, subcommands, and arguments."""
+        self.parser = self.init_parser(**main_kwargs)
+        shtab.add_argument_to(self.parser, ["-s", "--print-completion"])
 
-            print(json.dumps(results, ensure_ascii=False, indent=2))
-
-            metrics = Path(self.trainer.log_dir) / "metrics.json"
-            with metrics.open("w") as f:
-                json.dump(results, f, ensure_ascii=False, indent=2)
+        if add_subcommands:
+            self._subcommand_method_arguments: dict[str, list[str]] = {}
+            self._add_subcommands(self.parser, **subparser_kwargs)
+        else:
+            self._add_arguments(self.parser)
