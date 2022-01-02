@@ -1,235 +1,135 @@
 #!/usr/bin/env python
 
+import warnings
+from functools import partial
 from pathlib import Path
-from typing import Callable, Literal, Optional, Union
+from typing import Literal, Optional
 
-import numpy as np
-import pandas as pd
-import torch
-from PIL import Image, ImageFile
+from datasets.features.features import Features
+from datasets.load import load_dataset
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
+from torch.utils.data import DataLoader
 
-from .utils import ALI_CATE_LEVEL_NAME, ALI_CATE_NAME, FEATURE_SIZE, train_test_split
-
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-
-class ALIDataset(Dataset):
-    def __init__(
-        self,
-        dataframe: pd.DataFrame,
-        root: Path,
-        use_text: bool = True,
-        use_image: bool = True,
-        use_pv_pairs: bool = False,
-        feature_type: Optional[str] = None,
-        num_image_embeds: int = 1,
-        transforms: Optional[Callable] = None,
-    ) -> None:
-        self.dataframe = dataframe
-        self.len = len(dataframe)
-
-        self.use_text = use_text
-        self.use_image = use_image
-        self.use_pv_pairs = use_pv_pairs
-
-        self.feature_type = feature_type
-        self.num_image_embeds = num_image_embeds
-        self.transforms = transforms
-
-        if self.feature_type == "e2e":
-            self.image_dir = root / "images"
-            images = self.image_dir.glob("*.jpg")
-        else:
-            self.image_dir = root / f"{self.feature_type}_features"
-            images = self.image_dir.glob("*.pt")
-
-        self.ids = {int(f.stem) for f in images}
-
-    def __getitem__(self, index: int):
-        raw = self.dataframe.iloc[index].to_dict()
-
-        res = {}
-        res["raw"] = raw
-        res["texts"] = []
-        res["images"] = []
-
-        def serialize_pv_pairs(pv_pairs):
-            return " ".join([" ".join(p.split("#:#")) for p in pv_pairs.split("#;#")])
-
-        for suffix in ["left", "right"]:
-            if self.use_text:
-                text = raw[f"title_{suffix}"]
-
-                if self.use_pv_pairs:
-                    pv_pairs = serialize_pv_pairs(raw[f"pv_pairs_{suffix}"])
-                    text += " " + pv_pairs
-
-                res["texts"].append(text)
-
-            if self.use_image:
-                id = raw[f"id_{suffix}"]
-
-                if self.feature_type == "e2e":
-                    image_path = self.image_dir / f"{id}.jpg"
-
-                    if id in self.ids:
-                        image = Image.open(image_path).convert("RGB")
-                        image = self.transforms(image)
-                    else:
-                        image = Image.fromarray(
-                            255 * np.ones((256, 256, 3), dtype=np.uint8)
-                        )
-                        image = torch.zeros_like(self.transforms(image))
-                else:
-                    image_path = self.image_dir / f"{id}.pt"
-
-                    if id in self.ids:
-                        image = torch.load(image_path, map_location="cpu")
-
-                        if self.feature_type == "roi":
-                            image = image[: self.num_image_embeds, :]
-                    else:
-                        if self.feature_type == "grid":
-                            image = torch.zeros(*FEATURE_SIZE[self.feature_type])
-                        else:
-                            image = torch.zeros(0, *FEATURE_SIZE[self.feature_type])
-
-                res["images"].append(image)
-
-        return res
-
-    def __len__(self) -> int:
-        return self.len
+warnings.filterwarnings(
+    "ignore", ".*Consider increasing the value of the `num_workers` argument*"
+)
 
 
 class AliDataModule(LightningDataModule):
     def __init__(
         self,
-        cate_level_name: Optional[ALI_CATE_LEVEL_NAME] = None,
-        cate_name: Optional[ALI_CATE_NAME] = None,
-        prod_num: int = 200,
-        use_text: bool = True,
-        use_image: bool = True,
-        use_pv_pairs: bool = False,
-        feature_type: Literal["grid", "roi", "e2e"] = "grid",
-        num_image_embeds: int = 1,
-        out_domain: bool = False,
+        cat: Literal["all", "clothing", "shoes", "accessories"] = "all",
+        columns: list[str] = ["title"],
+        test_name: Literal["", "np", "nr", "nc", "i", "inp", "inr", "inc"] = "",
         batch_size: int = 32,
-        num_workers: int = 4,
+        num_workers: int = 0,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cate_level_name = cate_level_name
-        self.cate_name = cate_name
-        self.prod_num = prod_num
+        self.cat = cat
+        self.columns = columns
+        self.test_name = test_name
 
-        self.use_text = use_text
-        self.use_image = use_image
-        self.use_pv_pairs = use_text and use_pv_pairs
-
-        self.feature_type = feature_type
-        self.num_image_embeds = num_image_embeds
-
-        self.out_domain = out_domain
-
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    @property
-    def version(self):
-        self._version = "_".join(
-            map(str, [self.cate_level_name, self.cate_name, self.prod_num])
-        )
-
-        if self.use_text:
-            self._version += "_text"
-            if self.use_pv_pairs:
-                self._version += "_pv-pairs"
-
-        if self.use_image:
-            self._version += f"_image_{self.feature_type}_{self.num_image_embeds}"
-
-        if self.out_domain:
-            self._version += "_out-domain"
-
-        return self._version
+        self.data_path = Path("./data/ali/")
+        self.train_path = self.data_path / f"datasets/{cat}/train.parquet"
+        self.val_path = self.data_path / f"datasets/{cat}/val.parquet"
+        test_file_name = f"{test_name}_test" if test_name else "test"
+        self.test_path = self.data_path / f"datasets/{cat}/{test_file_name}.parquet"
+        self.image_path = self.data_path / "images"
 
     def prepare_data(self) -> None:
-        cate_level_name = (
-            ("_" + self.cate_level_name.replace("/", "_"))
-            if self.cate_level_name
-            else ""
-        )
-        cate_name = ("_" + self.cate_name.replace("/", "_")) if self.cate_name else ""
-        root = Path("../data/ali")
+        self.setup()  # avoid cache conflict in multi processes
 
-        data_path = Path(
-            f"../data/ali/dataset/dataset{cate_level_name}{cate_name}_{self.prod_num}.json"
-        )
-        dataframe = pd.read_json(data_path, lines=True)
-        dataset = ALIDataset(
-            dataframe=dataframe,
-            root=root,
-            use_text=self.use_text,
-            use_image=self.use_image,
-            use_pv_pairs=self.use_pv_pairs,
-            feature_type=self.feature_type,
-            num_image_embeds=self.num_image_embeds,
-            transforms=self.transforms,
-        )
-
-        self.data_train, self.data_test = train_test_split(dataset, test_size=0.2)
-        self.data_train, self.data_valid = train_test_split(
-            self.data_train, test_size=0.2
-        )
-
-        if self.out_domain:
-            test_path = Path(
-                f"../data/ali/testset/testset{cate_level_name}{cate_name}_{self.prod_num}.json"
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self, "datasets"):
+            convert_to_features = self.trainer.model.convert_to_features
+            features = getattr(self.trainer.model, "features", None)
+            preprocess_fn = partial(
+                self._preprocess, columns=self.columns, image_path=self.image_path
             )
-            dataframe = pd.read_json(test_path, lines=True)
-            self.data_test = ALIDataset(
-                dataframe=dataframe,
-                root=root,
-                use_text=self.use_text,
-                use_image=self.use_image,
-                use_pv_pairs=self.use_pv_pairs,
-                feature_type=self.feature_type,
-                num_image_embeds=self.num_image_embeds,
-                transforms=self.transforms,
-            )
+            preprocess = lambda x: convert_to_features(preprocess_fn(x))
 
-    def train_dataloader(
-        self,
-    ) -> Union[DataLoader, list[DataLoader], dict[str, DataLoader]]:
+            if self.test_name == "":
+                data_files = {
+                    "train": str(self.train_path),
+                    "val": str(self.val_path),
+                    "test": str(self.test_path),
+                }
+            else:
+                data_files = {
+                    "test": str(self.test_path),
+                }
+
+            datasets = load_dataset("parquet", data_files=data_files)
+            self.datasets = datasets.map(
+                preprocess,
+                batched=True,
+                remove_columns=next(iter(datasets.values())).column_names,
+                features=Features(features) if features else None,
+            )
+            self.datasets.set_format(type="torch")
+
+        self.collate_fn = getattr(self.trainer.model, "collate_fn", None)
+
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
-            dataset=self.data_train,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["train"],
+            batch_size=self.hparams.batch_size,
             shuffle=True,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
 
-    def val_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
+    def val_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            dataset=self.data_valid,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["val"],
+            batch_size=self.hparams.batch_size,
             shuffle=False,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
 
-    def test_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
+    def test_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            dataset=self.data_test,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["test"],
+            batch_size=self.hparams.batch_size,
             shuffle=False,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
+
+    def get_version(self):
+        version = self.cat
+        if self.test_name:
+            version += f"_{self.test_name}"
+
+        return version
+
+    @staticmethod
+    def _preprocess(batch, columns: list[str], image_path: Path):
+        text_left = []
+        for attrs in zip(*(batch[f"{c}_left"] for c in columns)):
+            text_left.append(" ".join(map(lambda x: str(x or ""), attrs)))
+
+        text_right = []
+        for attrs in zip(*(batch[f"{c}_right"] for c in columns)):
+            text_right.append(" ".join(map(lambda x: str(x or ""), attrs)))
+
+        image_left = [image_path / f"{i}.jpg" for i in batch["id_left"]]
+        image_right = [image_path / f"{i}.jpg" for i in batch["id_right"]]
+
+        return {
+            "text_left": text_left,
+            "text_right": text_right,
+            "image_left": image_left,
+            "image_right": image_right,
+            "labels": batch["label"],
+        }

@@ -1,0 +1,118 @@
+#+latex_class: article
+#+latex_class_options:
+#+latex_header: \usepackage{ctex}
+#+latex_header: \usepackage[margin=1in]{geometry}
+#+latex_header_extra:
+#+latex_compiler: xelatex
+#+date: \today
+#+options: toc:nil
+#+options: num:nil
+#+options: export:none
+
+* ALI Fasion Corpus Statistics
+#+begin_src python :exports none
+import pandas as pd
+column_names = [
+    "id",
+    "title",
+    "pict_url",
+    "cate_name",
+    "cate_level_name",
+    "pv_pairs",
+    "cluster_id",
+]
+df = pd.read_csv(
+    "../data/ali/same_product_train_sample_1wpid_USTC.txt",
+    header=None,
+    sep="@;@",
+    names=column_names,
+    engine="python",
+)
+#+end_src
+
+** Proudct 数 126277
+#+begin_src python :exports none
+len(df)
+#+end_src
+
+** Cluster 数 10000
+#+begin_src python :exports none
+len(df["cluster_id"].unique())
+#+end_src
+
+#+begin_src python :exports none
+df["cluster_id"].value_counts().value_counts()
+# 20    3670
+# 1      813
+# 2      542
+# 3      392
+# 6      388
+# 4      365
+# 5      343
+# 8      336
+# 7      327
+# 9      298
+# 11     278
+# 18     276
+# 19     273
+# 14     260
+# 10     259
+# 12     246
+# 17     237
+# 13     237
+# 16     237
+# 15     223
+# Name: cluster_id, dtype: int64
+#+end_src
+
+** 类别 ~['女装/女士精品', '女鞋', '男装', '服饰配件/皮带/帽子/围巾', '流行男鞋', '运动服/休闲服装', '运动鞋new']~
+| 类别                    | #Product | #Cluster |
+|-------------------------+----------+----------|
+| 女装/女士精品           |    61234 |     5495 |
+| 女鞋                    |    16365 |     1319 |
+| 男装                    |    20757 |     1901 |
+| 服饰配件/皮带/帽子/围巾 |     9893 |      917 |
+| 流行男鞋                |     9911 |      845 |
+| 运动服/休闲服装         |     4833 |      774 |
+| 运动鞋 new              |     3284 |      241 |
+#+begin_src python :exports none
+for cate_level_name in [
+    "女装/女士精品",
+    "女鞋",
+    "男装",
+    "服饰配件/皮带/帽子/围巾",
+    "流行男鞋",
+    "运动服/休闲服装",
+    "运动鞋new",
+]:
+    print(
+        "| ",
+        cate_level_name,
+        " | ",
+        len(df[df["cate_level_name"] == cate_level_name]),
+        " | ",
+        len(df[df["cate_level_name"] == cate_level_name]["cluster_id"].unique()),
+        " |",
+    )
+#+end_src
+** 小类别
+~['连衣裙', 'T恤', '时装凉鞋', '单鞋', '背心/马甲', '马夹', '风衣', '短外套', '大码女装', '一字拖', '包头拖', '中老年女装', '蕾丝衫/雪纺衫', '休闲裤', '手套', '时尚套装', '休闲运动套装', '衬衫', '棉衣/棉服', '帆布鞋', '雨鞋', '工装制服', '鞋垫', '夹克', '礼服/晚装', '婚纱', '工装鞋', '牛仔裤', '上衣', '毛针织衫', '帽子', '其他配件', 'POLO衫', '卫衣/绒衫', '休闲皮鞋', '乐福鞋（豆豆鞋）', '钥匙扣', '酒店工作制服', '运动连衣裙', '针织衫/毛衣', '西裤', '民族服装/舞台装', '连体衣/裤', '半身裙', '卫衣', '毛呢外套', '毛衣', '西装', '羽绒服', '时装靴', '运动背心', '运动内衣套装', '前掌垫', '板鞋/休闲鞋', '时尚休闲鞋', '网面鞋', '棉衣', '学生校服', '布鞋', '高帮鞋', '打底裤', '运动内裤', '运动套装', '毛线', '抹胸', '休闲板鞋', '运动T恤', '健身衣', '跑步鞋', '运动棉衣', '其他套装', '围巾/丝巾/披肩', '汉服', '背心吊带', '运动卫衣/套头衫', '三件套', '篮球鞋', '西服套装', '毛呢大衣', '西服', '运动风衣', '皮草', '增高垫', '马丁靴', '其它制服/套装', '运动中长裤／短裤', '人字拖', '运动茄克/外套', '腰带/皮带/腰链', '包挂件', '裙子', '运动长裤', '正装皮鞋', '皮衣', '职业女裤套装', '时尚休闲沙滩鞋', '拎环', '包带', '耳套', '运动半身裙', '足球鞋', '皇冠配饰', '大码上装', '裤子', '跑步T恤', '运动牛仔裤', '领结', '领带', '沙滩鞋', '时尚雪地靴', '职业女裙套装', '切尔西靴', '智能手环', '旗袍', '洞洞鞋', '运动羽绒服', '民族服装', '运动沙滩鞋/凉鞋', '健身裤', '防晒面纱', '新娘头饰', '袖扣', 'Polo衫', '弹力靴/袜靴', '运动文胸', '其他拖鞋', '其他民族服装', '棒球服', '健身套装', '多件套', '布面料', '松糕（摇摇）鞋', '单马甲', '鞋带', '唐装', '穆勒鞋', '防晒袖套', '跑步裤', '中老年上装', '头纱', '中老年套装', '童鞋/青少年鞋', '中山装', '运动毛衣/线衫', '马甲', '大码下装', '西装裤/正装裤', '口袋巾', '运动拖鞋', '运动POLO衫', '羽毛球鞋', '假领', '防滑贴', '其它运动鞋', '羊绒开衫', '综合训练鞋/室内健身鞋', '医护制服', '指环', '卫裤', '鞋扣', '领带夹', '皮裤', '休闲西服', '皮带扣', '棉裤', '领针', '手帕', '中老年下装', '棉裤/羽绒裤', '鞋撑', '其他凉鞋', '婚纱裙撑', '保健环', '后跟贴', '乒乓球鞋', '羽绒裤', '跑步外套', '二件套', '健步鞋', '网球鞋', '婚纱手套', '羽绒马甲']~
+* Proposal
+** Data Generation Strategy
+Category: All(10000,126277), Clothing(8170,86824), Shoes(2405,29560), Accessories(917,9893)
+Cluster 500, Records 5000, Pairs 20000 7:3:1
+*** Splitting
+1. Unseen Products: Sample Clusters (Split) -> Sample Records -> Sample Pairs
+2. Unseen Records: Sample Clusters -> Sample Records (Split) -> Sample Pairs
+3. Unseen Pairs (Current Settings): Sample Clusters -> Sample Records -> Sample Pairs (Split)
+*** Test Set Ratio
+1. Small Ratio (1:3)
+2. Large Ratio (1:100)
+*** Multi Model
+1. Text
+2. Image
+3. Text + Image
+** Conclusions
+1. 在 Unseen Products 上表现很差（之前已有结论），Unseen Records 还可以？
+2. 基于正负样本小比例训练的模型并不适合实际情况
+3. Multi Model 对于缓解 1 2 问题有帮助

@@ -16,8 +16,7 @@ from rich import print
 
 class LitCLI(LightningCLI):
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        for arg in ["use_text", "use_image", "feature_type", "num_image_embeds"]:
-            parser.link_arguments(f"model.init_args.{arg}", f"data.init_args.{arg}")
+        ...
 
     def modify_logger(self, logger: LightningLoggerBase, exp_name: str, version: str):
         if exp_name and hasattr(logger, "_name"):
@@ -39,11 +38,11 @@ class LitCLI(LightningCLI):
             if hasattr(self.datamodule, "get_version")
             else ""
         )
-        seed = str(self.seed_everything_default)
+        seed = str(self._get(self.config, "seed_everything"))
         timestramp = datetime.now().strftime("%m%d-%H%M%S")
         version = "_".join(
             filter(None, [model_version, datamodule_version, seed, timestramp])
-        )
+        ).replace("/", "-")
         log_dir = (
             f"{self.trainer.default_root_dir}/{exp_name.lower()}/{version.lower()}"
         )
@@ -64,6 +63,8 @@ class LitCLI(LightningCLI):
     before_fit = before_validate = before_test = before_run
 
     def after_run(self):
+        results = {}
+
         if self.trainer.state.fn == TrainerFn.FITTING:
             if (
                 self.trainer.checkpoint_callback
@@ -105,9 +106,10 @@ class LitCLI(LightningCLI):
             results_str = json.dumps(results, ensure_ascii=False, indent=2)
             print(results_str)
 
-            metrics_file = Path(self.trainer.log_dir) / "metrics.json"
-            with metrics_file.open("w") as f:
-                f.write(results_str)
+            if self.trainer.log_dir is not None:
+                metrics_file = Path(self.trainer.log_dir) / "metrics.json"
+                with metrics_file.open("w") as f:
+                    f.write(results_str)
 
     after_fit = after_validate = after_test = after_run
 

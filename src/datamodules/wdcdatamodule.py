@@ -2,249 +2,186 @@
 
 import warnings
 from collections import defaultdict
+from functools import partial
 from pathlib import Path
-from typing import Callable, Literal, Optional, Union
+from typing import Literal, Optional
 
-import numpy as np
 import pandas as pd
-import torch
-from PIL import Image, ImageFile
+from datasets.arrow_dataset import Dataset
+from datasets.features.features import Features
+from datasets.load import load_dataset
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
+from torch.utils.data import DataLoader
 
-from .utils import FEATURE_SIZE
-
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-
-class WDCDataset(Dataset):
-    def __init__(
-        self,
-        dataframe: pd.DataFrame,
-        root: Path,
-        use_text: bool = True,
-        use_image: bool = True,
-        feature_type: Optional[str] = None,
-        num_image_embeds: int = 1,
-        filter_no_image: bool = False,
-        transforms: Optional[Callable] = None,
-    ) -> None:
-        self.dataframe = dataframe
-        self.len = len(self.dataframe)
-
-        self.use_text = use_text
-        self.use_image = use_image
-
-        self.feature_type = feature_type
-        self.num_image_embeds = num_image_embeds
-
-        self.transforms = transforms
-
-        if self.use_image:
-            if self.feature_type == "e2e":
-                dir = root / "images"
-            else:
-                dir = root / f"{self.feature_type}_features"
-
-            self.id2paths = defaultdict(list)
-
-            for f in dir.glob("*_*"):
-                self.id2paths[int(f.stem[:-2])].append(f)
-
-            for v in self.id2paths.values():
-                v.sort()
-
-            if filter_no_image:
-                ids = self.id2paths.keys()
-                self.dataframe = dataframe[
-                    (dataframe["id_left"].isin(ids)) & (dataframe["id_right"].isin(ids))
-                ]
-                self.len = len(self.dataframe)
-
-    def __getitem__(self, index):
-        raw = self.dataframe.iloc[index].to_dict()
-
-        res = {}
-        res["raw"] = raw
-        res["texts"] = []
-        res["images"] = []
-
-        for suffix in ["left", "right"]:
-            if self.use_text:
-                text = raw[f"title_{suffix}"]
-                res["texts"].append(text)
-
-            if self.use_image:
-                id = raw[f"id_{suffix}"]
-
-                if self.feature_type == "e2e":
-                    image_paths = self.id2paths[id]
-
-                    if image_paths:
-                        with warnings.catch_warnings():
-                            warnings.simplefilter("ignore")
-                            image = Image.open(image_paths[0]).convert("RGB")
-
-                        image = self.transforms(image)
-                    else:
-                        image = Image.fromarray(
-                            255 * np.ones((256, 256, 3), dtype=np.uint8)
-                        )
-                        image = torch.zeros_like(self.transforms(image))
-                else:
-                    image_paths = self.id2paths[id]
-
-                    if image_paths:
-                        image = torch.load(image_paths[0], map_location="cpu")
-
-                        if self.feature_type == "roi":
-                            image = image[: self.num_image_embeds, :]
-                    else:
-                        if self.feature_type == "grid":
-                            image = torch.zeros(*FEATURE_SIZE[self.feature_type])
-                        else:
-                            image = torch.zeros(0, *FEATURE_SIZE[self.feature_type])
-
-                res["images"].append(image)
-
-        return res
-
-    def __len__(self):
-        return self.len
+warnings.filterwarnings(
+    "ignore", ".*Consider increasing the value of the `num_workers` argument*"
+)
 
 
 class WDCDataModule(LightningDataModule):
     def __init__(
         self,
-        cate: Literal["all", "cameras", "computers", "shoes", "watches"] = "all",
-        training_size: Literal["small", "medium", "large", "xlarge"] = "medium",
-        use_text: bool = True,
-        use_image: bool = True,
-        feature_type: Literal["grid", "roi", "e2e"] = "grid",
-        num_image_embeds: int = 1,
-        filter_no_image: bool = False,
+        cat: Literal["all", "cameras", "computers", "shoes", "watches"] = "all",
+        train_size: Literal["small", "medium", "large", "xlarge"] = "medium",
+        columns: list[str] = ["title"],
+        extra_test: bool = False,
         batch_size: int = 32,
-        num_workers: int = 4,
+        num_workers: int = 0,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        self.cate = cate
-        self.training_size = training_size
+        self.cat = cat
+        self.train_size = train_size
+        self.columns = columns
+        self.extra_test = extra_test
 
-        self.use_text = use_text
-        self.use_image = use_image
+        self.data_path = Path("./data/wdc/")
+        self.train_path = (
+            self.data_path
+            / f"norm/training-sets/{self.cat}_train/{self.cat}_train_{self.train_size}.parquet"
+        )
+        self.valid_path = (
+            self.data_path
+            / f"norm/validation-sets/{self.cat}_valid/{self.cat}_valid_{self.train_size}.parquet"
+        )
+        self.test_path = self.data_path / f"norm/gold-standards/{self.cat}_gs.parquet"
 
-        self.feature_type = feature_type
-        self.num_image_embeds = num_image_embeds
+        # extra test
+        if self.extra_test:
+            self.test_path = self.data_path / f"norm/test-sets/{self.cat}_test.parquet"
 
-        self.filter_no_image = filter_no_image
+        # image
+        self.id2imgs = defaultdict(list)
+        for f in (self.data_path / "images").glob("*_*"):
+            self.id2imgs[int(f.stem.split("_")[0])].append(f)
 
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-
-    @property
-    def version(self):
-        self._version = "_".join(map(str, [self.cate, self.training_size]))
-
-        if self.use_text:
-            self._version += "_text"
-
-        if self.use_image:
-            self._version += f"_image_{self.feature_type}_{self.num_image_embeds}"
-
-        if self.filter_no_image:
-            self._version += f"_filter"
-
-        return self._version
+        for k, v in self.id2imgs.items():
+            self.id2imgs[k] = sorted(v)
 
     def prepare_data(self) -> None:
-        return super().prepare_data()
+        # NOTE: Use pandas to load to avoid ArrowNotImplementedError:
+        # Unsupported cast from struct to struct using function cast_struct
+        remove_columns = [
+            "specTableContent_left",
+            "keyValuePairs_left",
+            "cluster_id_left",
+            "identifiers_left",
+            "specTableContent_right",
+            "keyValuePairs_right",
+            "cluster_id_right",
+            "identifiers_right",
+        ]
 
-    def setup(self, stage: Optional[str]) -> None:
-        root_dir = Path("../data/wdc/")
-        data_dir = Path("../data/wdc/norm/")
+        if not (self.train_path.exists() and self.valid_path.exists()):
+            train_path = self.train_path.with_suffix(".json.gz")
+            valid_path = self.valid_path.with_suffix(".csv")
 
-        if stage in ["fit", "validate"] or stage is None:
-            training_path = (
-                data_dir
-                / "training-sets"
-                / f"{self.cate}_train"
-                / f"{self.cate}_train_{self.training_size}.json.gz"
+            train_valid_df = pd.read_json(train_path, lines=True)
+            valid_pair_id = pd.read_csv(valid_path)["pair_id"]
+
+            train_df = train_valid_df[~train_valid_df["pair_id"].isin(valid_pair_id)]
+            train_df.reset_index(drop=True, inplace=True)
+            train_dataset = Dataset.from_pandas(train_df).remove_columns(remove_columns)
+            train_dataset.to_parquet(self.train_path)
+
+            valid_df = train_valid_df[train_valid_df["pair_id"].isin(valid_pair_id)]
+            valid_df.reset_index(drop=True, inplace=True)
+            valid_dataset = Dataset.from_pandas(valid_df).remove_columns(remove_columns)
+            valid_dataset.to_parquet(self.valid_path)
+
+        if not self.test_path.exists():
+            test_path = self.test_path.with_suffix(".json.gz")
+            test_dataset = Dataset.from_pandas(
+                pd.read_json(test_path, lines=True)
+            ).remove_columns(remove_columns)
+            test_dataset.to_parquet(self.test_path)
+
+        self.setup()  # avoid cache conflict in multi processes
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if not hasattr(self, "datasets"):
+            convert_to_features = self.trainer.model.convert_to_features
+            features = getattr(self.trainer.model, "features", None)
+            preprocess_fn = partial(
+                self._preprocess, columns=self.columns, id2imgs=self.id2imgs
             )
-            training_df = pd.read_json(training_path, lines=True)
+            preprocess = lambda x: convert_to_features(preprocess_fn(x))
 
-            validation_set_path = (
-                data_dir
-                / "validation-sets"
-                / f"{self.cate}_valid"
-                / f"{self.cate}_valid_{self.training_size}.csv"
+            datasets = load_dataset(
+                "parquet",
+                data_files={
+                    "train": str(self.train_path),
+                    "valid": str(self.valid_path),
+                    "test": str(self.test_path),
+                },
             )
-            validation_pair_id = pd.read_csv(validation_set_path)["pair_id"]
-
-            self.data_train = WDCDataset(
-                dataframe=training_df[~training_df["pair_id"].isin(validation_pair_id)],
-                root=root_dir,
-                use_text=self.use_text,
-                use_image=self.use_image,
-                feature_type=self.feature_type,
-                num_image_embeds=self.num_image_embeds,
-                filter_no_image=self.filter_no_image,
-                transforms=self.transforms,
+            self.datasets = datasets.map(
+                preprocess,
+                batched=True,
+                remove_columns=datasets["train"].column_names,
+                features=Features(features) if features else None,
             )
-            self.data_valid = WDCDataset(
-                dataframe=training_df[training_df["pair_id"].isin(validation_pair_id)],
-                root=root_dir,
-                use_text=self.use_text,
-                use_image=self.use_image,
-                feature_type=self.feature_type,
-                num_image_embeds=self.num_image_embeds,
-                filter_no_image=self.filter_no_image,
-                transforms=self.transforms,
-            )
+            self.datasets.set_format(type="torch")
 
-        if stage == "test" or stage is None:
-            test_path = data_dir / "gold-standards" / f"{self.cate}_gs.json.gz"
+        self.collate_fn = getattr(self.trainer.model, "collate_fn", None)
 
-            self.data_test = WDCDataset(
-                dataframe=pd.read_json(test_path, lines=True),
-                root=root_dir,
-                use_text=self.use_text,
-                use_image=self.use_image,
-                feature_type=self.feature_type,
-                num_image_embeds=self.num_image_embeds,
-                filter_no_image=self.filter_no_image,
-                transforms=self.transforms,
-            )
-
-    def train_dataloader(
-        self,
-    ) -> Union[DataLoader, list[DataLoader], dict[str, DataLoader]]:
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
-            dataset=self.data_train,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["train"],
+            batch_size=self.hparams.batch_size,
             shuffle=True,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
 
-    def val_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
+    def val_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            dataset=self.data_valid,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["valid"],
+            batch_size=self.hparams.batch_size,
             shuffle=False,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
 
-    def test_dataloader(self) -> Union[DataLoader, list[DataLoader]]:
+    def test_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            dataset=self.data_test,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            dataset=self.datasets["test"],
+            batch_size=self.hparams.batch_size,
             shuffle=False,
-            pin_memory=True,
+            num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn,
+            persistent_workers=self.hparams.num_workers > 0,
+            pin_memory=True,
         )
+
+    def get_version(self):
+        version = f"{self.cat}_{self.train_size}_{self.extra_test}"
+
+        return version
+
+    @staticmethod
+    def _preprocess(batch, columns: list[str], id2imgs: dict):
+        text_left = []
+        for attrs in zip(*(batch[f"{c}_left"] for c in columns)):
+            text_left.append(" ".join(map(lambda x: str(x or ""), attrs)))
+
+        text_right = []
+        for attrs in zip(*(batch[f"{c}_right"] for c in columns)):
+            text_right.append(" ".join(map(lambda x: str(x or ""), attrs)))
+
+        image_left = [id2imgs[i][0] if id2imgs[i] else None for i in batch["id_left"]]
+        image_right = [id2imgs[i][0] if id2imgs[i] else None for i in batch["id_right"]]
+
+        return {
+            "text_left": text_left,
+            "text_right": text_right,
+            "image_left": image_left,
+            "image_right": image_right,
+            "labels": batch["label"],
+        }

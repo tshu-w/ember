@@ -1,454 +1,334 @@
 #!/usr/bin/env python
 
+import math
 import os
-import random
-import time
-from multiprocessing import Pool
+from collections import namedtuple
 from pathlib import Path
-from posixpath import expanduser
-from typing import Iterator, Optional
+from typing import Optional
 
 import jieba
 import numpy as np
 import pandas as pd
-from gensim.corpora import Dictionary
-from gensim.similarities import Similarity, SparseMatrixSimilarity
 from pytorch_lightning import seed_everything
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-os.makedirs(expanduser("~/.cache/jieba"), exist_ok=True)
-jieba.dt.tmp_dir = expanduser("~/.cache/jieba")
+seed_everything(142)
 
-DATA_PATH = Path("../data/ali/dataset")
-DATA_PATH.mkdir(exist_ok=True, parents=True)
-TEST_PATH = Path("../data/ali/testset")
-TEST_PATH.mkdir(exist_ok=True, parents=True)
+CATEGORIES = ["all", "clothing", "shoes", "accessories"]
+CAT2CATE_LEVEL_NAME = {
+    "all": ["女装/女士精品", "女鞋", "男装", "服饰配件/皮带/帽子/围巾", "流行男鞋", "运动服/休闲服装", "运动鞋new"],
+    "clothing": ["女装/女士精品", "男装", "运动服/休闲服装"],
+    "shoes": ["女鞋", "流行男鞋", "运动鞋new"],
+    "accessories": ["服饰配件/皮带/帽子/围巾"],
+}
+
+Split = namedtuple("Split", ["main", "extra"])
+CLUSTER_SIZE_SPLIT = Split(250, 100)
+RECORD_RADIO_SPLIT = Split(0.6, 0.4)
+
+POS_NEG = namedtuple("POS_NEG", ["pos", "neg"])
+POS_NEG_SIZE = POS_NEG(1, 3)
+IMBALANCE_POS_NEG_SIZE = POS_NEG(1 * 20, 99 * 20)
+
+NUM_PAIRS = 40
+NEW_PAIR_NUM_PAIRS = NEW_RECORD_NUM_PAIRS = 8
+NEW_CLUSTER_NUM_PAIRS = 20
+
+SIMILAR_CLUSTER_NUM = 12
+
+assert NUM_PAIRS * 0.2 == NEW_RECORD_NUM_PAIRS
+assert (
+    CLUSTER_SIZE_SPLIT.main * NUM_PAIRS * 0.2
+    == CLUSTER_SIZE_SPLIT.extra * NEW_CLUSTER_NUM_PAIRS
+    == sum(IMBALANCE_POS_NEG_SIZE)
+)
+
+os.makedirs(os.path.expanduser("~/.cache/jieba"), exist_ok=True)
+jieba.dt.tmp_dir = os.path.expanduser("~/.cache/jieba")
 
 
-def preprocess(row):
-    return row
+def jaccard_similarity(lst1: list, lst2: list) -> float:
+    s1 = set(lst1)
+    s2 = set(lst2)
+    return len(s1 & s2) / len(s1 | s2)
 
 
-def get_df_pairs(
-    df1: pd.DataFrame, df2: pd.DataFrame, index: str = "id"
+def union_tokenized_title(tokenized_titles: pd.Series) -> list[str]:
+    return list(set.union(*map(set, tokenized_titles)))
+
+
+def get_extra_records_ids(record_ids: pd.Series) -> pd.Series:
+    return Split(
+        *train_test_split(record_ids, test_size=RECORD_RADIO_SPLIT.extra)
+    ).extra
+
+
+def build_positive_pairs(
+    sub_corpus: pd.DataFrame,
+    corpus: Optional[pd.DataFrame] = None,
+    num_per_cluster: Optional[int] = None,
+    total_num: Optional[int] = None,
 ) -> pd.DataFrame:
-    df_cartesian = pd.merge(
-        df1.assign(key=0),
-        df2.assign(key=0),
-        on="key",
-        suffixes=("_left", "_right"),
-        how="inner",
-    ).drop("key", axis=1)
+    pairs_lst = []
 
-    return df_cartesian[df_cartesian[index + "_left"] != df_cartesian[index + "_right"]]
+    if corpus is None:
+        corpus = sub_corpus
 
+    if num_per_cluster is None:
+        assert total_num is not None
+        num_clusters = len(sub_corpus["cluster_id"].unique())
+        num_per_cluster = math.ceil(total_num / num_clusters)
 
-def rename_column(s: str) -> str:
-    if s.endswith(("left", "right")):
-        return "_".join(s.rsplit("_", 1)[::-1])
+    num_hard = num_per_cluster // 2 + num_per_cluster % 2
+    num_random = num_per_cluster // 2
 
-    return s
-
-
-def dataset_gen(
-    corpus: pd.DataFrame, pairs: list[tuple], label: int
-) -> Iterator[pd.DataFrame]:
-    """Yield dataset pairs."""
-    for pair in pairs:
-        order_id = pair[0]
-        hard_ids = pair[1][0]
-        random_ids = pair[1][1]
-
-        left_orders = corpus[corpus["id"] == order_id].drop(columns=["title_tokenized"])
-        right_orders = corpus[corpus["id"].isin(hard_ids + random_ids)].drop(
-            columns=["title_tokenized"]
+    for cluster_id, records in tqdm(sub_corpus.groupby("cluster_id")):
+        same_cluster_records = corpus[corpus["cluster_id"] == cluster_id]
+        record_cartesian = pd.merge(
+            records, same_cluster_records, suffixes=("_left", "_right"), how="cross"
         )
-        df_pairs = get_df_pairs(left_orders, right_orders)
+        record_pairs = record_cartesian[
+            record_cartesian["id_left"] != record_cartesian["id_right"]
+        ].copy()
 
-        # df_pairs = df_pairs.rename(columns=rename_column)
-        df_pairs["label"] = label
-        df_pairs["pair_id"] = (
-            df_pairs["id_left"].map(str) + "#" + df_pairs["id_right"].map(str)
+        if len(record_pairs) == 0:
+            continue
+
+        record_pairs["similarity"] = record_pairs.apply(
+            lambda row: jaccard_similarity(
+                row["tokenized_title_left"], row["tokenized_title_right"]
+            ),
+            axis=1,
+        )
+        record_pairs.sort_values(by="similarity", inplace=True)
+
+        hard_pairs = record_pairs[:num_hard]
+        remained_len = len(record_pairs[num_hard:])
+        random_pairs = record_pairs[num_hard:].sample(n=min(num_random, remained_len))
+
+        drop_columns = [
+            "tokenized_title_left",
+            "tokenized_title_right",
+            "similarity",
+        ]
+        hard_pairs = hard_pairs.drop(columns=drop_columns)
+        random_pairs = random_pairs.drop(columns=drop_columns)
+
+        pairs_lst.append(hard_pairs)
+        pairs_lst.append(random_pairs)
+
+    pairs = pd.concat(pairs_lst, ignore_index=True)
+    if total_num is not None:
+        pairs = pairs.sample(n=total_num, ignore_index=True)
+    pairs["label"] = 1
+
+    return pairs
+
+
+def build_negative_pairs(
+    sub_corpus: pd.DataFrame,
+    corpus: Optional[pd.DataFrame] = None,
+    num_per_cluster: Optional[int] = None,
+    total_num: Optional[int] = None,
+) -> pd.DataFrame:
+    pairs_lst = []
+
+    if corpus is None:
+        corpus = sub_corpus
+
+    if num_per_cluster is None:
+        assert total_num is not None
+        num_clusters = len(sub_corpus["cluster_id"].unique())
+        num_per_cluster = math.ceil(total_num / num_clusters)
+
+    num_hard = num_per_cluster // 2 + num_per_cluster % 2
+    num_random = num_per_cluster // 2
+
+    cluster_id_groups = corpus.groupby("cluster_id")
+    cluster_title_df = (
+        cluster_id_groups[["tokenized_title"]].agg(union_tokenized_title).reset_index()
+    )
+
+    for cluster_id, records in tqdm(sub_corpus.groupby("cluster_id")):
+        cluster_title = union_tokenized_title(records["tokenized_title"])
+        cluster_title_df["similarity"] = cluster_title_df["tokenized_title"].apply(
+            lambda s: jaccard_similarity(s, cluster_title)
         )
 
-        yield df_pairs
-
-
-def build_positive_pairs(corpus, clusters, attribute, num_pos):
-    """
-    Builds positive pairs for all offers in each cluster in 'clusters'
-    which can be found in 'corpus' using 'attribute' for calculating
-    BOW cosine similarity to select hard pairs.
-    Selects an equal amount of hard and random pairs depending on 'num_pos'
-    per offer. If it is not possible to build 'num_pos' pairs, the heuristic
-    will build as many pairs as possible for that cluster.
-
-    Parameters:
-    corpus (pandas.DataFrame): Corpus containing product offers.
-    clusters (List): List of cluster_ids for which Positive pairs should be built.
-    attribute (str): Attribute of 'corpus' to use for similarity calculations.
-    num_pos (int): Number of positive examples to build per offer.
-
-    Returns:
-    List(Tuple(int, List(List,List))): a list of tuples, each tuple containing
-    the offer id and a list of two lists containing the offer ids of the hard
-    and random pairs.
-    """
-    pos_pairs = []
-    for current_cluster in tqdm(clusters):
-        cluster_data = corpus[corpus["cluster_id"] == current_cluster]
-
-        # build gensim dictionary, corpus and search index for selected cluster
-        dct = Dictionary(cluster_data[attribute], prune_at=5000000)
-        dct.filter_extremes(no_below=2, no_above=1.0, keep_n=None)
-        gensim_corpus = [dct.doc2bow(text) for text in cluster_data[attribute]]
-        index = SparseMatrixSimilarity(
-            gensim_corpus, num_features=len(dct), num_best=80
-        )
-
-        # query up to 80 most similar offers, only offers with similarity > 0
-        # will be returned
-        query = index[gensim_corpus]
-
-        for i, offer_sim_dup in enumerate(query):
-
-            current_num_pos = num_pos
-            current_id = cluster_data.iloc[i]["id"]
-
-            offer_sim = []
-
-            # remove self
-            for x in offer_sim_dup:
-                if x[0] != i:
-                    offer_sim.append(x)
-
-            # check if any pairs > 0 similarity remain
-            if len(offer_sim) == 0:
-                pos_pairs.append((current_id, [[], []]))
-                continue
-
-            # adapt number of selectable pairs if too few available
-            offer_len = len(offer_sim)
-            if offer_len < current_num_pos:
-                current_num_pos = offer_len
-
-            # hard_pos = current_num_pos
-            # random_pos = 0
-            if current_num_pos == 1:
-                hard_pos = 1
-                random_pos = 0
-            elif current_num_pos % 2 == 1:
-                hard_pos = int(current_num_pos / 2) + 1
-                random_pos = int(current_num_pos / 2)
-            else:
-                hard_pos = int(current_num_pos / 2)
-                random_pos = int(current_num_pos / 2)
-
-            # get hard offers from bottom of list
-            hard_offers = offer_sim[-hard_pos:]
-
-            if random_pos == 0:
-                pos_pairs.append(
-                    (
-                        current_id,
-                        [[cluster_data.iloc[x[0]]["id"] for x in hard_offers], []],
-                    )
-                )
-                continue
-
-            # remaining offers
-            rest = offer_sim[:-hard_pos]
-
-            # randomly select from remaining
-            random_select = random.sample(range(len(rest)), random_pos)
-            random_offers = [rest[idx] for idx in random_select]
-
-            hard_ids = [cluster_data.iloc[x[0]]["id"] for x in hard_offers]
-            random_ids = [cluster_data.iloc[x[0]]["id"] for x in random_offers]
-
-            pos_pairs.append((current_id, [hard_ids, random_ids]))
-
-    return pos_pairs
-
-
-# def build_neg_pairs_for_cat(corpus, category, offers, attribute, num_neg):
-def build_neg_pairs_for_cat(corpus, offers, attribute, num_neg):
-    """
-    Builds negative pairs for all offers in 'offers' which are of category
-    'category' which can be found in 'corpus' using 'attribute' for calculating
-    BOW cosine similarity to select hard pairs.
-    Selects an equal amount of hard and random pairs depending on 'num_neg'
-    per offer. Each hard negative will originate from a different cluster
-    to avoid building hard negatives with only a small amount of different
-    products. If offers in 'offers' originate from multiple categories,
-    this function should be called multiple times while iterating over
-    the different categories.
-
-    Parameters:
-    corpus (pandas.DataFrame): Corpus containing product offers
-    category (str): Category for which to build negatives
-    offers (List): List of offer_ids for which to build negatives
-    attribute (str): Attribute of 'corpus' to use for similarity calculations
-    num_neg (int): Number of negative examples to build per offer
-
-    Returns:
-    List(Tuple(int, List(List,List))): a list of tuples, each tuple containing
-    the offer id and a list of two lists containing the offer ids of the hard
-    and random pairs.
-    """
-    # select data from relevant category
-    cat_data = corpus.copy()
-    # cat_data = corpus[corpus["category"] == category].copy()
-    cat_data = cat_data.reset_index(drop=True)
-    cat_data["subindex"] = list(cat_data.index)
-
-    # build gensim dictionary, corpus and search index for selected cluster
-    dct = Dictionary(cat_data[attribute], prune_at=5000000)
-    dct.filter_extremes(no_below=2, no_above=0.8, keep_n=None)
-
-    gensim_corpus = [dct.doc2bow(text) for text in cat_data[attribute]]
-
-    index = Similarity(None, gensim_corpus, num_features=len(dct), num_best=200)
-
-    # corpus to select negatives against
-    corpus_neg_all = cat_data
-
-    # corpus containing only offers for which negatives should be built
-    corpus_neg = corpus_neg_all[corpus_neg_all["id"].isin(offers)]
-
-    neg_pairs_cat = []
-
-    # query for 200 most similar offers across whole category
-    query_corpus = [gensim_corpus[i] for i in list(corpus_neg["subindex"])]
-    start = time.time()
-    query = index[query_corpus]
-    end = time.time()
-    print(f"Query took {end-start} seconds")
-
-    for i, offer_sim in enumerate(tqdm(query)):
-
-        current_index = corpus_neg.iloc[i]["subindex"]
-        current_id = corpus_neg.iloc[i]["id"]
-        current_cluster_id = corpus_neg.iloc[i]["cluster_id"]
-        current_num_neg = num_neg
-
-        # remove any offers with similarity 1.0
-        sim_indices = []
-        for x in offer_sim:
-            if x[1] >= 1.0:
-                continue
-            else:
-                sim_indices.append(x[0])
-
-        possible_pairs = corpus_neg_all.loc[sim_indices]
-
-        # filter by cluster_id, i.e. only 1 offer per cluster remains to allow
-        # for product diversity
-
-        idx = sorted(np.unique(possible_pairs["cluster_id"], return_index=True)[1])
-
-        possible_pairs = possible_pairs.iloc[idx]
-
-        # remove any offer from same cluster
-        possible_pairs = possible_pairs[
-            possible_pairs["cluster_id"] != current_cluster_id
+        similar_cluster_ids = cluster_title_df[
+            cluster_title_df["cluster_id"] != cluster_id
+        ].sort_values(by="similarity", ascending=False)[:SIMILAR_CLUSTER_NUM][
+            "cluster_id"
         ]
 
-        possible_pairs_len = len(possible_pairs)
+        similar_records = corpus[corpus["cluster_id"].isin(similar_cluster_ids)]
+        record_pairs = pd.merge(
+            records, similar_records, suffixes=("_left", "_right"), how="cross"
+        )
+        record_pairs["similarity"] = record_pairs.apply(
+            lambda row: jaccard_similarity(
+                row["tokenized_title_left"], row["tokenized_title_right"]
+            ),
+            axis=1,
+        )
+        record_pairs.sort_values(by="similarity", inplace=True, ascending=False)
 
-        # check if any pairs > 0 similarity remain
-        if possible_pairs_len == 0:
-            neg_pairs_cat.append((current_id, [[], []]))
-            continue
+        hard_pairs = record_pairs[:num_hard]
+        remained_len = len(record_pairs[num_hard:])
+        random_pairs = record_pairs[num_hard:].sample(n=min(num_random, remained_len))
 
-        # adapt number of selectable pairs if too few available
-        if possible_pairs_len < current_num_neg:
-            current_num_neg = possible_pairs_len
+        drop_columns = [
+            "tokenized_title_left",
+            "tokenized_title_right",
+            "similarity",
+        ]
+        hard_pairs = hard_pairs.drop(columns=drop_columns)
+        random_pairs = random_pairs.drop(columns=drop_columns)
 
-        # random_neg = 0
-        # hard_neg = current_num_neg
-        if current_num_neg == 1:
-            hard_neg = 1
-            random_neg = 0
-        elif current_num_neg % 2 == 1:
-            hard_neg = int(current_num_neg / 2) + 1
-            random_neg = int(current_num_neg / 2)
-        else:
-            hard_neg = int(current_num_neg / 2)
-            random_neg = int(current_num_neg / 2)
+        pairs_lst.append(hard_pairs)
+        pairs_lst.append(random_pairs)
 
-        # select hard pairs from top of list
-        candidates = possible_pairs.iloc[:hard_neg]
+    pairs = pd.concat(pairs_lst, ignore_index=True)
+    if total_num is not None:
+        pairs = pairs.sample(n=min(total_num, len(pairs)), ignore_index=True)
 
-        hard_pairs = candidates["id"].tolist()
+    pairs["label"] = 0
 
-        if random_neg == 0:
-            neg_pairs_cat.append((current_id, [hard_pairs, []]))
-            continue
-        else:
-            remove = list(candidates.index)
-            remove.append(current_index)
-
-            # randomly select from all offers among same category
-            random_select = random.sample(range(len(corpus_neg_all)), random_neg)
-            random_pairs = corpus_neg_all.iloc[random_select]
-            while any(random_pairs["id"].isin(remove)) or any(
-                random_pairs["cluster_id"] == current_cluster_id
-            ):
-                random_select = random.sample(range(len(corpus_neg_all)), random_neg)
-                random_pairs = corpus_neg_all.iloc[random_select]
-            random_pairs = random_pairs["id"].tolist()
-
-            combined_pairs = [hard_pairs, random_pairs]
-        neg_pairs_cat.append((current_id, combined_pairs))
-
-    return neg_pairs_cat
+    return pairs
 
 
-def build_dataset(
-    corpus: pd.DataFrame,
-    cluster_num: Optional[int] = None,
-    cate_level_name: Optional[str] = None,
-    cate_name: Optional[str] = None,
-    num_pos: int = 1,
-    num_neg: int = 3,
-):
-    seed_everything(123)
+def build_record_pairs(
+    sub_corpus: pd.DataFrame,
+    pos_corpus: Optional[pd.DataFrame] = None,
+    neg_corpus: Optional[pd.DataFrame] = None,
+    num_per_cluster: Optional[int] = None,
+    pos_neg_size: POS_NEG = POS_NEG_SIZE,
+) -> pd.DataFrame:
+    if num_per_cluster is not None:
+        assert num_per_cluster % sum(pos_neg_size) == 0
+        num_pos = num_per_cluster // sum(pos_neg_size) * pos_neg_size.pos
+        num_neg = num_per_cluster // sum(pos_neg_size) * pos_neg_size.neg
 
-    corpus = (
-        corpus[corpus["cate_level_name"] == cate_level_name]
-        if cate_level_name
-        else corpus
+        pos_pairs = build_positive_pairs(
+            sub_corpus, pos_corpus, num_per_cluster=num_pos
+        )
+        neg_pairs = build_negative_pairs(
+            sub_corpus, neg_corpus, num_per_cluster=num_neg
+        )
+    else:
+        pos_pairs = build_positive_pairs(
+            sub_corpus, pos_corpus, total_num=pos_neg_size.pos
+        )
+        neg_pairs = build_negative_pairs(
+            sub_corpus, neg_corpus, total_num=pos_neg_size.neg
+        )
+
+    return pd.concat((pos_pairs, neg_pairs))
+
+
+def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    cluster_ids = corpus["cluster_id"].unique()
+    sampled_cluster_ids = np.random.choice(
+        cluster_ids, size=sum(CLUSTER_SIZE_SPLIT), replace=False
     )
-    corpus = corpus[corpus["cate_name"] == cate_name] if cate_name else corpus
-
-    corpus = corpus.apply(preprocess, axis=1)
-
-    tokenized_title = corpus["title"].apply(
-        lambda s: list(filter(lambda x: str(x).strip(), jieba.cut(s)))
+    cluster_ids_split = Split(
+        *train_test_split(sampled_cluster_ids, test_size=CLUSTER_SIZE_SPLIT.extra)
     )
-    corpus["title_tokenized"] = tokenized_title
-
-    gt1_bool = corpus["cluster_id"].value_counts() > 1
-    clusters_gt1 = list(gt1_bool[gt1_bool].index)
-
-    if cluster_num is None:
-        cluster_num = len(clusters_gt1)
-
-    _cate_level_name = (
-        ("_" + cate_level_name.replace("/", "_")) if cate_level_name else ""
+    assert len(cluster_ids_split.main) + len(cluster_ids_split.extra) == len(
+        sampled_cluster_ids
     )
-    _cate_name = ("_" + cate_name.replace("/", "_")) if cate_name else ""
-    filename = f"{_cate_level_name}{_cate_name}_{cluster_num}.json"
-
-    ###########################################################################
-    #                                 dataset                                 #
-    ###########################################################################
-    random_clusters = random.sample(clusters_gt1, min(cluster_num, len(clusters_gt1)))
-    df = pd.DataFrame()
-
-    pos_pairs = build_positive_pairs(
-        corpus,
-        random_clusters,
-        attribute="title_tokenized",
-        num_pos=num_pos,
+    assert set(cluster_ids_split.main) & set(cluster_ids_split.extra) == set()
+    cluster_split = Split(
+        *(
+            corpus[corpus["cluster_id"].isin(cluster_ids)]
+            for cluster_ids in cluster_ids_split
+        )
     )
 
-    for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
-        df = df.append(df_pairs, ignore_index=True)
-
-    offers_for_negatives = [x[0] for x in pos_pairs]
-
-    neg_pairs = build_neg_pairs_for_cat(
-        corpus,
-        offers_for_negatives,
-        attribute="title_tokenized",
-        num_neg=num_neg,
+    record_ids = cluster_split.main["id"]
+    cluster_id_groups = cluster_split.main.groupby("cluster_id")
+    extract_record_ids = cluster_id_groups["id"].apply(get_extra_records_ids)
+    main_record_ids = record_ids[~record_ids.isin(extract_record_ids)]
+    assert len(main_record_ids) + len(extract_record_ids) == len(record_ids)
+    assert set(main_record_ids) & set(extract_record_ids) == set()
+    record_ids_split = Split(main_record_ids, extract_record_ids)
+    record_split = Split(
+        *(corpus[corpus["id"].isin(record_ids)] for record_ids in record_ids_split)
     )
 
-    for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
-        df = df.append(df_pairs, ignore_index=True)
+    dataset = build_record_pairs(record_split.main, num_per_cluster=NUM_PAIRS)
 
-    path = DATA_PATH / f"dataset{filename}"
-    df.to_json(path, lines=True, orient="records", force_ascii=False)
+    # 7:1:2
+    train_val, test = train_test_split(dataset, test_size=0.2)
+    train, val = train_test_split(train_val, test_size=1 / 8)
 
-    dataset_len = len(df)
-
-    ###########################################################################
-    #                                 testset                                 #
-    ###########################################################################
-    remained_clusters = [id for id in clusters_gt1 if id not in random_clusters]
-
-    random_clusters = random.sample(
-        remained_clusters, min(cluster_num, len(remained_clusters))
+    new_pair_test = build_record_pairs(
+        record_split.extra,
+        pos_corpus=record_split.main,
+        num_per_cluster=NEW_PAIR_NUM_PAIRS,
     )
-    df = pd.DataFrame()
-
-    pos_pairs = build_positive_pairs(
-        corpus,
-        random_clusters,
-        attribute="title_tokenized",
-        num_pos=num_pos,
+    new_record_test = build_record_pairs(
+        record_split.extra, num_per_cluster=NEW_RECORD_NUM_PAIRS
+    )
+    new_cluster_test = build_record_pairs(
+        cluster_split.extra, num_per_cluster=NEW_CLUSTER_NUM_PAIRS
     )
 
-    for df_pairs in tqdm(dataset_gen(corpus, pos_pairs, 1)):
-        df = df.append(df_pairs, ignore_index=True)
-
-    offers_for_negatives = [x[0] for x in pos_pairs]
-
-    neg_pairs = build_neg_pairs_for_cat(
-        corpus,
-        offers_for_negatives,
-        attribute="title_tokenized",
-        num_neg=num_neg,
+    excluded_corpus = record_split.main[
+        ~record_split.main["id"].isin(train_val["id_left"])
+    ]
+    imbalance_test = build_record_pairs(
+        excluded_corpus, pos_neg_size=IMBALANCE_POS_NEG_SIZE
+    )
+    imbalance_new_pair_test = build_record_pairs(
+        record_split.extra,
+        pos_corpus=record_split.main,
+        pos_neg_size=IMBALANCE_POS_NEG_SIZE,
+    )
+    imbalance_new_record_test = build_record_pairs(
+        record_split.extra, pos_neg_size=IMBALANCE_POS_NEG_SIZE
+    )
+    imbalance_new_cluster_test = build_record_pairs(
+        cluster_split.extra, pos_neg_size=IMBALANCE_POS_NEG_SIZE
     )
 
-    for df_pairs in tqdm(dataset_gen(corpus, neg_pairs, 0)):
-        df = df.append(df_pairs, ignore_index=True)
+    datasets = {
+        "train": train,
+        "val": val,
+        "test": test,
+        "np_test": new_pair_test,
+        "nr_test": new_record_test,
+        "nc_test": new_cluster_test,
+        "i_test": imbalance_test,
+        "inp_test": imbalance_new_pair_test,
+        "inr_test": imbalance_new_record_test,
+        "inc_test": imbalance_new_cluster_test,
+    }
 
-    path = TEST_PATH / f"testset{filename}"
-    df = df.sample(n=min(dataset_len // 5, len(df)))
-    df.to_json(path, orient="records", lines=True, force_ascii=False)
+    return datasets
 
 
 def main():
-    column_names = [
-        "id",
-        "title",
-        "pict_url",
-        "cate_name",
-        "cate_level_name",
-        "pv_pairs",
-        "cluster_id",
-    ]
-    df = pd.read_csv(
-        "../data/ali/same_product_train_sample_1wpid_USTC.txt",
-        header=None,
-        sep="@;@",
-        names=column_names,
-        engine="python",
+    corpus = pd.read_parquet("./data/ali/corpus.parquet")
+    corpus["tokenized_title"] = corpus["title"].apply(
+        lambda s: list(filter(lambda x: x.strip(), jieba.cut(s))),
     )
-    pool = Pool(processes=12)
 
-    for cluster_num in [200, 400, 800]:
-        for cate_level_name, cate_name in [
-            (None, None),
-            ("女装/女士精品", None),
-            ("女装/女士精品", "连衣裙"),
-            ("女装/女士精品", "T恤"),
-        ]:
-            pool.apply_async(
-                build_dataset,
-                kwds={
-                    "corpus": df.copy(),
-                    "cate_level_name": cate_level_name,
-                    "cate_name": cate_name,
-                    "cluster_num": cluster_num,
-                },
-            )
+    for cat in CATEGORIES:
+        print(cat)
+        cat_corpus = corpus[corpus["cate_level_name"].isin(CAT2CATE_LEVEL_NAME[cat])]
 
-    pool.close()
-    pool.join()
+        # filter clusters less than 10 in the cat_corpus
+        lt10_bool = cat_corpus["cluster_id"].value_counts() < 10
+        clusters_lt10 = lt10_bool[lt10_bool].index
+        cat_corpus = cat_corpus[~cat_corpus["cluster_id"].isin(clusters_lt10)]
+
+        datasets = build_datasets(cat_corpus)
+        datasets_path = Path(f"./data/ali/datasets/{cat}/")
+        datasets_path.mkdir(parents=True, exist_ok=True)
+        for k, df in datasets.items():
+            df.to_parquet(datasets_path / f"{k}.parquet", index=False)
 
 
 if __name__ == "__main__":
