@@ -2,7 +2,7 @@ model:
   class_path: src.models.text_matcher.TextMatcher
   init_args:
     model_name_or_path: bert-base-chinese
-    max_length: 128
+    max_length: 256
     dropout: 0.1
     learning_rate: 2.0e-05
 data:

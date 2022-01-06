@@ -3,7 +3,7 @@ model:
   init_args:
     text_model_name_or_path: bert-base-chinese
     vision_model_name_or_path: google/vit-base-patch16-224
-    max_length: 128
+    max_length: 256
     dropout: 0.1
     learning_rate: 2.0e-05
 data:

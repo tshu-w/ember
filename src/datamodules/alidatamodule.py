@@ -20,7 +20,7 @@ class AliDataModule(LightningDataModule):
     def __init__(
         self,
         cat: Literal["all", "clothing", "shoes", "accessories"] = "all",
-        columns: list[str] = ["title"],
+        columns: list[str] = ["title", "pv_pairs"],
         test_name: Literal["", "np", "nr", "nc", "i", "inp", "inr", "inc"] = "",
         batch_size: int = 32,
         num_workers: int = 0,
@@ -115,6 +115,15 @@ class AliDataModule(LightningDataModule):
 
     @staticmethod
     def _preprocess(batch, columns: list[str], image_path: Path):
+        batch["pv_pairs_left"] = [
+            pv_pairs.replace("#;#", " ").replace("#:#", " ")
+            for pv_pairs in batch["pv_pairs_left"]
+        ]
+        batch["pv_pairs_right"] = [
+            pv_pairs.replace("#;#", " ").replace("#:#", " ")
+            for pv_pairs in batch["pv_pairs_right"]
+        ]
+
         text_left = []
         for attrs in zip(*(batch[f"{c}_left"] for c in columns)):
             text_left.append(" ".join(map(lambda x: str(x or ""), attrs)))
