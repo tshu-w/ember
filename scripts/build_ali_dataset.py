@@ -264,8 +264,9 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
     train, val = train_test_split(train_val, test_size=1 / 8)
 
     new_pair_test = build_record_pairs(
-        record_split.extra,
-        pos_corpus=record_split.main,
+        record_split.main,
+        pos_corpus=record_split.extra,
+        neg_corpus=record_split.extra,
         num_per_cluster=NEW_PAIR_NUM_PAIRS,
     )
     new_record_test = build_record_pairs(
@@ -282,8 +283,9 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
         excluded_corpus, pos_neg_size=IMBALANCE_POS_NEG_SIZE
     )
     imbalance_new_pair_test = build_record_pairs(
-        record_split.extra,
-        pos_corpus=record_split.main,
+        record_split.main,
+        pos_corpus=record_split.extra,
+        neg_corpus=record_split.extra,
         pos_neg_size=IMBALANCE_POS_NEG_SIZE,
     )
     imbalance_new_record_test = build_record_pairs(
