@@ -66,7 +66,7 @@ def argument_parser():
         "--num-expt", type=int, default=1, help="how many experiments per gpu"
     )
     parser.add_argument(
-        "--no-run", action="store_true", help="whether to not run command"
+        "--no-run", action="store_true", help="whether not running command"
     )
     parser.add_argument("--gpus", nargs="+", default=["0"], help="availabled gpus")
 
