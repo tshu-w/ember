@@ -32,7 +32,7 @@ POS_NEG_SIZE = POS_NEG(1, 3)
 IMBALANCE_POS_NEG_SIZE = POS_NEG(1 * 20, 99 * 20)
 
 NUM_PAIRS = 40
-NEW_PAIR_NUM_PAIRS = NEW_RECORD_NUM_PAIRS = 8
+NEW_RECORD_NUM_PAIRS = NEW_RECORDS_NUM_PAIRS = 8
 NEW_CLUSTER_NUM_PAIRS = 20
 
 SIMILAR_CLUSTER_NUM = 12
@@ -263,14 +263,14 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
     train_val, test = train_test_split(dataset, test_size=0.2)
     train, val = train_test_split(train_val, test_size=1 / 8)
 
-    new_pair_test = build_record_pairs(
+    new_record_test = build_record_pairs(
         record_split.main,
         pos_corpus=record_split.extra,
         neg_corpus=record_split.extra,
-        num_per_cluster=NEW_PAIR_NUM_PAIRS,
+        num_per_cluster=NEW_RECORD_NUM_PAIRS,
     )
-    new_record_test = build_record_pairs(
-        record_split.extra, num_per_cluster=NEW_RECORD_NUM_PAIRS
+    new_records_test = build_record_pairs(
+        record_split.extra, num_per_cluster=NEW_RECORDS_NUM_PAIRS
     )
     new_cluster_test = build_record_pairs(
         cluster_split.extra, num_per_cluster=NEW_CLUSTER_NUM_PAIRS
@@ -282,13 +282,13 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
     imbalance_test = build_record_pairs(
         excluded_corpus, pos_neg_size=IMBALANCE_POS_NEG_SIZE
     )
-    imbalance_new_pair_test = build_record_pairs(
+    imbalance_new_record_test = build_record_pairs(
         record_split.main,
         pos_corpus=record_split.extra,
         neg_corpus=record_split.extra,
         pos_neg_size=IMBALANCE_POS_NEG_SIZE,
     )
-    imbalance_new_record_test = build_record_pairs(
+    imbalance_new_records_test = build_record_pairs(
         record_split.extra, pos_neg_size=IMBALANCE_POS_NEG_SIZE
     )
     imbalance_new_cluster_test = build_record_pairs(
@@ -299,13 +299,13 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "train": train,
         "val": val,
         "test": test,
-        "np_test": new_pair_test,
-        "nr_test": new_record_test,
-        "nc_test": new_cluster_test,
-        "i_test": imbalance_test,
-        "inp_test": imbalance_new_pair_test,
-        "inr_test": imbalance_new_record_test,
-        "inc_test": imbalance_new_cluster_test,
+        "test_nr": new_record_test,
+        "test_nrs": new_records_test,
+        "test_nc": new_cluster_test,
+        "test_i": imbalance_test,
+        "test_inr": imbalance_new_record_test,
+        "test_inrs": imbalance_new_records_test,
+        "test_inc": imbalance_new_cluster_test,
     }
 
     return datasets

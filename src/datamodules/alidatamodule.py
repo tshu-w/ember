@@ -21,7 +21,7 @@ class AliDataModule(LightningDataModule):
         self,
         cat: Literal["all", "clothing", "shoes", "accessories"] = "all",
         columns: list[str] = ["title", "pv_pairs"],
-        test_name: Literal["", "np", "nr", "nc", "i", "inp", "inr", "inc"] = "",
+        test_name: Literal["", "nr", "nrs", "nc", "i", "inr", "inrs", "inc"] = "",
         batch_size: int = 32,
         num_workers: int = 0,
     ):
@@ -35,7 +35,7 @@ class AliDataModule(LightningDataModule):
         self.data_path = Path("./data/ali/")
         self.train_path = self.data_path / f"datasets/{cat}/train.parquet"
         self.val_path = self.data_path / f"datasets/{cat}/val.parquet"
-        test_file_name = f"{test_name}_test" if test_name else "test"
+        test_file_name = f"test_{test_name}" if test_name else "test"
         self.test_path = self.data_path / f"datasets/{cat}/{test_file_name}.parquet"
         self.image_path = self.data_path / "images"
 

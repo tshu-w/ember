@@ -53,7 +53,7 @@ for seed in SEEDS:
                     f"*_{cat}_{seed}_*/checkpoints/*.ckpt"
                 )
             )
-            for test_name in ["", "np", "nr", "nc", "i", "inp", "inr", "inc"]:
+            for test_name in ["", "nr", "nrs", "nc", "i", "inr", "inrs", "inc"]:
                 kwargs = {
                     "config": config,
                     "cat": cat,

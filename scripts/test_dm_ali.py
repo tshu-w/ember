@@ -13,7 +13,16 @@ EXP_DIR.mkdir(parents=True, exist_ok=True)
 EXPTS = []
 
 for cat in ["all", "clothing", "shoes", "accessories"]:
-    for test_file in ["test", "np_test", "nr_test", "nc_test"]:
+    for test_file in [
+        "test",
+        "test_nr",
+        "test_nrs",
+        "test_nc",
+        "test_i",
+        "test_inr",
+        "test_inrs",
+        "test_inc",
+    ]:
         expt = {"cat": cat, "test_file": test_file}
         EXPTS.append(expt)
 
