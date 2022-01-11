@@ -161,7 +161,7 @@ def run(args):
             progress_style="log",
         )
 
-    test_f1 = model.run_eval(test, device=device, progress_style="log").item()
+    test_f1 = model.run_eval(test, device=device, progress_style="log").item() / 100
     results = {"test_f1": test_f1}
     results_str = json.dumps(results, ensure_ascii=False, indent=2)
 
