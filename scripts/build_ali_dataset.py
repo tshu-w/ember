@@ -29,7 +29,7 @@ RECORD_RADIO_SPLIT = Split(0.6, 0.4)
 
 POS_NEG = namedtuple("POS_NEG", ["pos", "neg"])
 POS_NEG_SIZE = POS_NEG(1, 3)
-IMBALANCE_POS_NEG_SIZE = POS_NEG(1 * 20, 99 * 20)
+IMBALANCE_POS_NEG_SIZE = POS_NEG(500, 99 * 500)
 
 NUM_PAIRS = 40
 NEW_RECORD_NUM_PAIRS = NEW_RECORDS_NUM_PAIRS = 8
@@ -38,11 +38,11 @@ NEW_CLUSTER_NUM_PAIRS = 20
 SIMILAR_CLUSTER_NUM = 12
 
 assert NUM_PAIRS * 0.2 == NEW_RECORD_NUM_PAIRS
-assert (
-    CLUSTER_SIZE_SPLIT.main * NUM_PAIRS * 0.2
-    == CLUSTER_SIZE_SPLIT.extra * NEW_CLUSTER_NUM_PAIRS
-    == sum(IMBALANCE_POS_NEG_SIZE)
-)
+# assert (
+#     CLUSTER_SIZE_SPLIT.main * NUM_PAIRS * 0.2
+#     == CLUSTER_SIZE_SPLIT.extra * NEW_CLUSTER_NUM_PAIRS
+#     == sum(IMBALANCE_POS_NEG_SIZE)
+# )
 
 os.makedirs(os.path.expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = os.path.expanduser("~/.cache/jieba")
@@ -67,6 +67,7 @@ def get_extra_records_ids(record_ids: pd.Series) -> pd.Series:
 def build_positive_pairs(
     sub_corpus: pd.DataFrame,
     corpus: Optional[pd.DataFrame] = None,
+    excluded_pairs: Optional[pd.DataFrame] = None,
     num_per_cluster: Optional[int] = None,
     total_num: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -91,6 +92,16 @@ def build_positive_pairs(
         record_pairs = record_cartesian[
             record_cartesian["id_left"] != record_cartesian["id_right"]
         ].copy()
+        if excluded_pairs is not None:
+            record_pairs = pd.merge(
+                record_pairs,
+                excluded_pairs,
+                on=["id_left", "id_right"],
+                how="left",
+                indicator=True,
+            )
+            record_pairs = record_pairs[record_pairs["_merge"] == "left_only"]
+            record_pairs = record_pairs.drop(columns="_merge")
 
         if len(record_pairs) == 0:
             continue
@@ -120,7 +131,7 @@ def build_positive_pairs(
 
     pairs = pd.concat(pairs_lst, ignore_index=True)
     if total_num is not None:
-        pairs = pairs.sample(n=total_num, ignore_index=True)
+        pairs = pairs.sample(n=min(total_num, len(pairs)), ignore_index=True)
     pairs["label"] = 1
 
     return pairs
@@ -129,6 +140,7 @@ def build_positive_pairs(
 def build_negative_pairs(
     sub_corpus: pd.DataFrame,
     corpus: Optional[pd.DataFrame] = None,
+    excluded_pairs: Optional[pd.DataFrame] = None,
     num_per_cluster: Optional[int] = None,
     total_num: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -166,6 +178,20 @@ def build_negative_pairs(
         record_pairs = pd.merge(
             records, similar_records, suffixes=("_left", "_right"), how="cross"
         )
+        if excluded_pairs is not None:
+            record_pairs = pd.merge(
+                record_pairs,
+                excluded_pairs,
+                on=["id_left", "id_right"],
+                how="left",
+                indicator=True,
+            )
+            record_pairs = record_pairs[record_pairs["_merge"] == "left_only"]
+            record_pairs = record_pairs.drop(columns="_merge")
+
+        if len(record_pairs) == 0:
+            continue
+
         record_pairs["similarity"] = record_pairs.apply(
             lambda row: jaccard_similarity(
                 row["tokenized_title_left"], row["tokenized_title_right"]
@@ -202,6 +228,7 @@ def build_record_pairs(
     sub_corpus: pd.DataFrame,
     pos_corpus: Optional[pd.DataFrame] = None,
     neg_corpus: Optional[pd.DataFrame] = None,
+    excluded_pairs: Optional[pd.DataFrame] = None,
     num_per_cluster: Optional[int] = None,
     pos_neg_size: POS_NEG = POS_NEG_SIZE,
 ) -> pd.DataFrame:
@@ -211,17 +238,29 @@ def build_record_pairs(
         num_neg = num_per_cluster // sum(pos_neg_size) * pos_neg_size.neg
 
         pos_pairs = build_positive_pairs(
-            sub_corpus, pos_corpus, num_per_cluster=num_pos
+            sub_corpus,
+            pos_corpus,
+            excluded_pairs,
+            num_per_cluster=num_pos,
         )
         neg_pairs = build_negative_pairs(
-            sub_corpus, neg_corpus, num_per_cluster=num_neg
+            sub_corpus,
+            neg_corpus,
+            excluded_pairs,
+            num_per_cluster=num_neg,
         )
     else:
         pos_pairs = build_positive_pairs(
-            sub_corpus, pos_corpus, total_num=pos_neg_size.pos
+            sub_corpus,
+            pos_corpus,
+            excluded_pairs,
+            total_num=pos_neg_size.pos,
         )
         neg_pairs = build_negative_pairs(
-            sub_corpus, neg_corpus, total_num=pos_neg_size.neg
+            sub_corpus,
+            neg_corpus,
+            excluded_pairs,
+            total_num=pos_neg_size.neg,
         )
 
     return pd.concat((pos_pairs, neg_pairs))
@@ -276,11 +315,10 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
         cluster_split.extra, num_per_cluster=NEW_CLUSTER_NUM_PAIRS
     )
 
-    excluded_corpus = record_split.main[
-        ~record_split.main["id"].isin(train_val["id_left"])
-    ]
     imbalance_test = build_record_pairs(
-        excluded_corpus, pos_neg_size=IMBALANCE_POS_NEG_SIZE
+        record_split.main,
+        excluded_pairs=train_val[["id_left", "id_right"]],
+        pos_neg_size=IMBALANCE_POS_NEG_SIZE,
     )
     imbalance_new_record_test = build_record_pairs(
         record_split.main,
