@@ -14,20 +14,20 @@ EXP_DIR = PROJECT_DIR / "logs" / "ali"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_ARGS = {
-    "config": "ali_tm",
+    "config": "wdc_tm",
     "cat": "all",
-    "seed": 142,
+    "extra_test": False,
     "num_workers": 32,
-    "k": 10,
+    "seed": 142,
 }
 EXPT_TMP = Template(
     """{
   "data": {
-    "class_path": "src.AliDataModule",
+    "class_path": "src.WDCDataModule",
     "init_args": {
       "cat": "${cat}",
-      "num_workers": "${num_workers}",
-      "k": "${k}"
+      "extra_test": "${extra_test}",
+      "num_workers": "${num_workers}"
     }
   },
   "seed": "${seed}",
@@ -38,15 +38,14 @@ EXPTS = []
 SEEDS = [142, 123]
 
 for seed in SEEDS:
-    # for config in ["ali_tm", "ali_vm", "ali_mm"]:
-    for config in ["ali_tm"]:
-        for cat in ["all", "clothing", "shoes", "accessories"]:
-            for k in [10, 20, 40, 80, 100]:
+    for config in ["wdc_tm"]:
+        for extra_test in [False, True]:
+            for cat in ["all", "cameras", "computers", "shoes", "watches"]:
                 kwargs = {
                     "cat": cat,
                     "config": config,
                     "seed": seed,
-                    "k": k,
+                    "extra_test": extra_test,
                 }
                 EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwargs))
 
@@ -97,7 +96,7 @@ def run(exp_args, args):
         cmd = f"""./run fit \\
         --config configs/{exp_args['config']}.yaml \\
         --seed_everything {exp_args['seed']} \\
-        --trainer.gpus {gpu}, --trainer.default_root_dir results_ratio --trainer.max_epochs 30 \\
+        --trainer.gpus {gpu}, --trainer.default_root_dir wdc_results --trainer.max_epochs 30 \\
         --data '{exp_args['data']}' \\
         >{outfile} 2>{errfile}
         """

@@ -13,7 +13,6 @@ os.makedirs(os.path.expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = os.path.expanduser("~/.cache/jieba")
 
 import copy
-import io
 import os
 
 from deepmatcher.data.dataset import MatchingDataset
@@ -34,7 +33,7 @@ def process_labeled(path, trained_model, ignore_columns=None):
         ignore_columns (list):
             A list of columns to ignore in the unlabeled CSV file.
     """
-    with io.open(path, encoding="utf8") as f:
+    with open(path, encoding="utf8") as f:
         header = next(unicode_csv_reader(f))
 
     train_info = trained_model.meta
@@ -58,7 +57,7 @@ def process_labeled(path, trained_model, ignore_columns=None):
     # Make sure we have the same attributes.
     assert set(dataset.all_text_fields) == set(train_info.all_text_fields)
 
-    reverse_fields_dict = dict((pair[1], pair[0]) for pair in fields)
+    reverse_fields_dict = {pair[1]: pair[0] for pair in fields}
     for field, name in reverse_fields_dict.items():
         if field is not None and field.use_vocab:
             # Copy over vocab from original train data.

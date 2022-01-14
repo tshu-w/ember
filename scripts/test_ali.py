@@ -46,22 +46,31 @@ cfg2dir = {
 }
 
 for seed in SEEDS:
-    for config in ["ali_tm", "ali_vm", "ali_mm"]:
+    # for config in ["ali_tm", "ali_vm", "ali_mm"]:
+    for config in ["ali_tm"]:
         for cat in ["all", "clothing", "shoes", "accessories"]:
             ckpt_path = next(
                 (Path("./results") / cfg2dir[config]).glob(
                     f"*_{cat}_{seed}_*/checkpoints/*.ckpt"
                 )
             )
-            for test_name in ["", "nr", "nrs", "nc", "i", "inr", "inrs", "inc"]:
-                kwargs = {
-                    "config": config,
-                    "cat": cat,
-                    "test_name": test_name,
-                    "seed": seed,
-                    "ckpt_path": ckpt_path,
-                }
-                EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwargs))
+            for k in [4, 10, 20, 40, 80, 100]:
+                for test_name in ["", "nr", "nrs", "nc"]:
+                    if k == 4:
+                        test_name == test_name
+                    elif k == 100:
+                        test_name = f"i{test_name}"
+                    else:
+                        test_name = f"i{test_name}_{k}"
+
+                    kwargs = {
+                        "config": config,
+                        "cat": cat,
+                        "test_name": test_name,
+                        "seed": seed,
+                        "ckpt_path": ckpt_path,
+                    }
+                    EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwargs))
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
@@ -112,7 +121,7 @@ def run(exp_args, args):
         cmd = f"""./run test \\
         --config configs/{exp_args['config']}.yaml \\
         --seed_everything {exp_args['seed']} \\
-        --trainer.gpus {gpu}, --trainer.default_root_dir tests \\
+        --trainer.gpus {gpu}, --trainer.default_root_dir test_ratio \\
         --data '{exp_args['data']}' \\
         --ckpt_path {exp_args['ckpt_path']} \\
         >{outfile} 2>{errfile}
