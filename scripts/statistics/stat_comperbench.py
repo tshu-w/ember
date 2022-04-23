@@ -27,5 +27,5 @@ for folder in Path("./data/comperbench/").iterdir():
         "target_id"
     ].isin(train_ids).astype(int)
     cnt = test["cnt"].value_counts().to_dict()
-    print(sum(cnt.values()))
+    print(cnt)
     print((sum(k * v for k, v in cnt.items())) / (sum(cnt.values()) * 2))

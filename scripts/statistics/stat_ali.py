@@ -6,7 +6,7 @@ import pandas as pd
 
 for cat in ["all", "shoes", "clothing", "accessories"]:
     print(cat)
-    for suffix in ["", "nr", "nrs", "nc", "i", "inr", "inrs", "inc"]:
+    for suffix in ["", "rl", "cfm", "om", "i", "irl", "icfm", "iom"]:
         folder = Path(f"./data/ali/datasets/{cat}/")
         test_filename = f"test_{suffix}.parquet" if suffix else "test.parquet"
         test = pd.read_parquet(folder / test_filename)

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import math
 import os
 from collections import namedtuple
@@ -38,11 +36,6 @@ NEW_CLUSTER_NUM_PAIRS = 20
 SIMILAR_CLUSTER_NUM = 12
 
 assert NUM_PAIRS * 0.2 == NEW_RECORD_NUM_PAIRS
-# assert (
-#     CLUSTER_SIZE_SPLIT.main * NUM_PAIRS * 0.2
-#     == CLUSTER_SIZE_SPLIT.extra * NEW_CLUSTER_NUM_PAIRS
-#     == sum(IMBALANCE_POS_NEG_SIZE)
-# )
 
 os.makedirs(os.path.expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = os.path.expanduser("~/.cache/jieba")
@@ -337,13 +330,13 @@ def build_datasets(corpus: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "train": train,
         "val": val,
         "test": test,
-        "test_nr": new_record_test,
-        "test_nrs": new_records_test,
-        "test_nc": new_cluster_test,
+        "test_rl": new_record_test,
+        "test_cfm": new_records_test,
+        "test_om": new_cluster_test,
         "test_i": imbalance_test,
-        "test_inr": imbalance_new_record_test,
-        "test_inrs": imbalance_new_records_test,
-        "test_inc": imbalance_new_cluster_test,
+        "test_irl": imbalance_new_record_test,
+        "test_icfm": imbalance_new_records_test,
+        "test_iom": imbalance_new_cluster_test,
     }
 
     return datasets
