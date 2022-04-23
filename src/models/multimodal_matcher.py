@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from functools import partial
 from typing import Any, Optional, Union
 
@@ -84,19 +82,6 @@ class MultimodalMatcher(Matcher):
 
     def configure_optimizers(self):
         return AdamW(self.parameters(), lr=self.hparams.learning_rate)
-
-    def get_version(self):
-        version = "_".join(
-            filter(
-                None,
-                [
-                    self.hparams.text_model_name_or_path,
-                    self.hparams.vision_model_name_or_path,
-                ],
-            )
-        )
-
-        return version
 
     @staticmethod
     def _convert_to_features(

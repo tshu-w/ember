@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from typing import Optional
 
 import torch.nn.functional as F

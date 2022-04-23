@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import warnings
 from collections import defaultdict
 from functools import partial
@@ -159,11 +157,6 @@ class WDCDataModule(LightningDataModule):
             persistent_workers=self.hparams.num_workers > 0,
             pin_memory=True,
         )
-
-    def get_version(self):
-        version = f"{self.cat}_{self.train_size}_{self.extra_test}"
-
-        return version
 
     @staticmethod
     def _preprocess(batch, columns: list[str], id2imgs: dict):

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import warnings
 from functools import partial
 from pathlib import Path
@@ -111,14 +109,6 @@ class AliDataModule(LightningDataModule):
             persistent_workers=self.hparams.num_workers > 0,
             pin_memory=True,
         )
-
-    def get_version(self):
-        version = self.cat
-        # version = f"{self.cat}_{self.k}"
-        if self.test_name:
-            version += f"_{self.test_name}"
-
-        return version
 
     @staticmethod
     def _preprocess(batch, columns: list[str], image_path: Path):
