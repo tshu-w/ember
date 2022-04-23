@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.parent
-EXP_DIR = PROJECT_DIR / "logs" / "ali_dm"
+EXP_DIR = PROJECT_DIR / "results" / "logs" / "ali"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 EXPTS = []
@@ -13,13 +13,13 @@ EXPTS = []
 for cat in ["all", "clothing", "shoes", "accessories"]:
     for test_file in [
         "test",
-        "test_nr",
-        "test_nrs",
-        "test_nc",
+        "test_rl",
+        "test_cfm",
+        "test_om",
         "test_i",
-        "test_inr",
-        "test_inrs",
-        "test_inc",
+        "test_irl",
+        "test_icfm",
+        "test_iom",
     ]:
         expt = {"cat": cat, "test_file": test_file}
         EXPTS.append(expt)
@@ -56,8 +56,8 @@ def run(exp_args, args):
     cmd = f"""python scripts/dm.py \\
     --dir {dir} \\
     --gpu {gpu} \\
-    --output tests/{exp_name} \\
-    --no-fit --test-file {test_file} --model-dir results/{model_dir} \\
+    --output results/test/{exp_name} \\
+    --no-fit --test-file {test_file} --model-dir results/fit/{model_dir} \\
     >{outfile} 2>{errfile}
     """
 

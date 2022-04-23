@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.parent
-EXP_DIR = PROJECT_DIR / "logs" / "ali_dm"
+EXP_DIR = PROJECT_DIR / "results" / "logs" / "ali_dm"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 EXPTS = []
@@ -43,7 +43,7 @@ def run(exp_args, args):
     cmd = f"""python scripts/dm.py \\
     --dir {dir} \\
     --gpu {gpu} \\
-    --output results/{exp_name} \\
+    --output results/fit/{exp_name} \\
     >{outfile} 2>{errfile}
     """
 

@@ -10,7 +10,7 @@ dependencies:
   - pip=21.2.4
   - python=3.9.12
   - readline=8.1.2
-  - setuptools=61.2.0
+  - setuptools=59.5.0 # https://github.com/pytorch/pytorch/issues/69894
   - sqlite=3.38.2
   - tk=8.6.11
   - tzdata=2022a

@@ -1,21 +1,168 @@
 import argparse
+import copy
 import json
 import os
+import sys
+import time
 from pathlib import Path
 
 import deepmatcher as dm
 import jieba
 import pandas as pd
+import pyprind
+import torch
+from deepmatcher.data import MatchingDataset, MatchingIterator
+from deepmatcher.data.process import _make_fields
+from deepmatcher.runner import Runner, Statistics
+from deepmatcher.utils import tally_parameters
+from torchtext.utils import unicode_csv_reader
+from tqdm import tqdm
 
 os.makedirs(os.path.expanduser("~/.cache/jieba"), exist_ok=True)
 jieba.dt.tmp_dir = os.path.expanduser("~/.cache/jieba")
 
-import copy
-import os
+# Return f1, precision, recall when evaluation
+@staticmethod
+def _run(
+    run_type,
+    model,
+    dataset,
+    criterion=None,
+    optimizer=None,
+    train=False,
+    device=None,
+    batch_size=32,
+    batch_callback=None,
+    epoch_callback=None,
+    progress_style="bar",
+    log_freq=5,
+    sort_in_buckets=None,
+    return_predictions=False,
+    return_all_metrics=False,
+    **kwargs,
+):
 
-from deepmatcher.data.dataset import MatchingDataset
-from deepmatcher.data.process import _make_fields
-from torchtext.utils import unicode_csv_reader
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif device == "gpu":
+        device = "cuda"
+
+    sort_in_buckets = train
+    run_iter = MatchingIterator(
+        dataset,
+        model.meta,
+        train,
+        batch_size=batch_size,
+        device=device,
+        sort_in_buckets=sort_in_buckets,
+    )
+
+    model = model.to(device)
+    if criterion:
+        criterion = criterion.to(device)
+
+    if train:
+        model.train()
+    else:
+        model.eval()
+
+    epoch = model.epoch
+    datatime = 0
+    runtime = 0
+    cum_stats = Statistics()
+    stats = Statistics()
+    predictions = []
+    id_attr = model.meta.id_field
+    label_attr = model.meta.label_field
+
+    if train and epoch == 0:
+        print("* Number of trainable parameters:", tally_parameters(model))
+
+    epoch_str = f"Epoch {epoch + 1:d}"
+    print("===> ", run_type, epoch_str)
+    batch_end = time.time()
+
+    # The tqdm-bar for Jupyter notebook is under development.
+    if progress_style == "tqdm-bar":
+        pbar = tqdm(
+            total=len(run_iter) // log_freq,
+            bar_format="{l_bar}{bar}{postfix}",
+            file=sys.stdout,
+        )
+
+    # Use the pyprind bar as the default progress bar.
+    if progress_style == "bar":
+        pbar = pyprind.ProgBar(len(run_iter) // log_freq, bar_char="█", width=30)
+
+    for batch_idx, batch in enumerate(run_iter):
+        batch_start = time.time()
+        datatime += batch_start - batch_end
+
+        output = model(batch)
+
+        # from torchviz import make_dot, make_dot_from_trace
+        # dot = make_dot(output.mean(), params=dict(model.named_parameters()))
+        # pdb.set_trace()
+
+        loss = float("NaN")
+        if criterion:
+            loss = criterion(output, getattr(batch, label_attr))
+
+        if hasattr(batch, label_attr):
+            scores = Runner._compute_scores(output, getattr(batch, label_attr))
+        else:
+            scores = [0] * 4
+
+        cum_stats.update(float(loss), *scores)
+        stats.update(float(loss), *scores)
+
+        if return_predictions:
+            for idx, id in enumerate(getattr(batch, id_attr)):
+                predictions.append((id, float(output[idx, 1].exp())))
+
+        if (batch_idx + 1) % log_freq == 0:
+            if progress_style == "log":
+                Runner._print_stats(
+                    run_type, epoch + 1, batch_idx + 1, len(run_iter), stats, cum_stats
+                )
+            elif progress_style == "tqdm-bar":
+                pbar.update()
+                Runner._set_pbar_status(pbar, stats, cum_stats)
+            elif progress_style == "bar":
+                pbar.update()
+            stats = Statistics()
+
+        if train:
+            model.zero_grad()
+            loss.backward()
+
+            if not optimizer.params:
+                optimizer.set_parameters(model.named_parameters())
+            optimizer.step()
+
+        batch_end = time.time()
+        runtime += batch_end - batch_start
+
+    if progress_style == "tqdm-bar":
+        pbar.close()
+    elif progress_style == "bar":
+        sys.stderr.flush()
+
+    Runner._print_final_stats(epoch + 1, runtime, datatime, cum_stats)
+
+    if return_predictions:
+        return predictions
+    elif return_all_metrics:
+        return {
+            "f1": cum_stats.f1(),
+            "prc": cum_stats.precision(),
+            "rec": cum_stats.recall(),
+        }
+    else:
+        return cum_stats.f1()
+
+
+Runner._run = _run
 
 
 def process_labeled(path, trained_model, ignore_columns=None):
@@ -158,8 +305,16 @@ def run(args):
             progress_style="log",
         )
 
-    test_f1 = model.run_eval(test, device=device, progress_style="log").item() / 100
-    results = {"test_f1": test_f1}
+    results = Runner._run(
+        "EVAL",
+        model,
+        test,
+        device=device,
+        progress_style="log",
+        return_all_metrics=True,
+    )
+    for k, v in results.items():
+        results[k] = v.item() / 100
     results_str = json.dumps(results, ensure_ascii=False, indent=2)
 
     metrics_file = o_dir / "metrics.json"
