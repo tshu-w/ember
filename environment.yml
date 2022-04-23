@@ -1,4 +1,4 @@
-name: multimodalER
+name: ember
 channels:
   - defaults
   - conda-forge

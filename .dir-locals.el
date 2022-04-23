@@ -3,6 +3,6 @@
 
 ((magit-mode . ((eval . (setq-local magit-git-environment
                                     (append magit-git-environment
-                                            '("CONDA_DEFAULT_ENV=multimodalER"))))))
+                                            '("CONDA_DEFAULT_ENV=ember"))))))
  (python-mode . ((lsp-pyright-venv-path . "~/.local/share/conda/envs")
                  (lsp-pyright-stub-path . "~/.local/lib/python-type-stubs"))))
