@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from torchmetrics import F1, MetricCollection, Precision, Recall
+from torchmetrics import F1Score, MetricCollection, Precision, Recall
 
 
 class Matcher(LightningModule):
@@ -16,7 +16,7 @@ class Matcher(LightningModule):
         metrics_kwargs = {"ignore_index": 0}
         metrics = MetricCollection(
             {
-                "f1": F1(**metrics_kwargs),
+                "f1": F1Score(**metrics_kwargs),
                 "prc": Precision(**metrics_kwargs),
                 "rec": Recall(**metrics_kwargs),
             }
