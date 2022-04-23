@@ -19,9 +19,9 @@ class Matcher(LightningModule):
                 "rec": Recall(**metrics_kwargs),
             }
         )
-        self.train_metrics = metrics.clone(prefix="train_")
-        self.valid_metrics = metrics.clone(prefix="valid_")
-        self.test_metrics = metrics.clone(prefix="test_")
+        self.train_metrics = metrics.clone(prefix="train/")
+        self.val_metrics = metrics.clone(prefix="val/")
+        self.test_metrics = metrics.clone(prefix="test/")
 
     def common_step(self, batch, step: str) -> Optional[STEP_OUTPUT]:
         labels = batch.pop("labels", None)
@@ -35,7 +35,7 @@ class Matcher(LightningModule):
             metrics(probs, labels)
 
             self.log_dict(metrics, prog_bar=True)
-            self.log(f"{step}_loss", loss, prog_bar=True)
+            self.log(f"{step}/loss", loss, prog_bar=True)
         else:
             loss = None
 
@@ -45,17 +45,14 @@ class Matcher(LightningModule):
         return self.common_step(batch, "train")
 
     def validation_step(self, batch, batch_idx: int) -> Optional[STEP_OUTPUT]:
-        return self.common_step(batch, "valid")
+        return self.common_step(batch, "val")
 
     def test_step(self, batch, batch_idx: int) -> Optional[STEP_OUTPUT]:
         return self.common_step(batch, "test")
 
     def configure_callbacks(self):
-        callbacks_kargs = {"monitor": "valid_f1", "mode": "max"}
+        callbacks_kargs = {"monitor": "val/f1", "mode": "max"}
 
-        early_stop = EarlyStopping(patience=5, **callbacks_kargs)
-        checkpoint = ModelCheckpoint(
-            filename="{epoch:02d}-{valid_f1:.2%}", **callbacks_kargs
-        )
-
-        return [early_stop, checkpoint]
+        early_stopping = EarlyStopping(patience=5, **callbacks_kargs)
+        model_checkpoint = ModelCheckpoint(**callbacks_kargs)
+        return [early_stopping, model_checkpoint]

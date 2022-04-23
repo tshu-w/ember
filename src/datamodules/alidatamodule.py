@@ -20,28 +20,37 @@ class AliDataModule(LightningDataModule):
         cat: Literal["all", "clothing", "shoes", "accessories"] = "all",
         columns: list[str] = ["title", "pv_pairs"],
         test_name: str = "",
-        # k: int = 4,
+        train_ratio: Optional[int] = None,
+        test_ratio: Optional[int] = None,
         batch_size: int = 32,
         num_workers: int = 0,
+        pin_memory: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         self.cat = cat
         self.columns = columns
-        self.test_name = "" if test_name is None else test_name
-        # self.k = k
         self.data_path = Path("./data/ali/")
+        self.image_path = self.data_path / "images"
         self.train_path = self.data_path / f"datasets/{cat}/train.parquet"
         self.val_path = self.data_path / f"datasets/{cat}/val.parquet"
-        # self.train_path = self.data_path / f"datasets_ratio/{cat}/train_{k}.parquet"
-        # self.val_path = self.data_path / f"datasets_ratio/{cat}/val_{k}.parquet"
+        self.test_name = test_name
         test_file_name = f"test_{test_name}" if test_name else "test"
         self.test_path = self.data_path / f"datasets/{cat}/{test_file_name}.parquet"
-        # self.test_path = (
-        #     self.data_path / f"datasets_ratio/{cat}/{test_file_name}_{k}.parquet"
-        # )
-        self.image_path = self.data_path / "images"
+
+        if train_ratio is not None:
+            self.train_path = (
+                self.data_path / f"datasets_ratio/{cat}/train_{train_ratio}.parquet"
+            )
+            self.val_path = (
+                self.data_path / f"datasets_ratio/{cat}/val_{train_ratio}.parquet"
+            )
+        if test_ratio is not None:
+            self.test_path = (
+                self.data_path
+                / f"datasets_ratio/{cat}/{test_file_name}_{test_ratio}.parquet"
+            )
 
     def prepare_data(self) -> None:
         self.setup()  # avoid cache conflict in multi processes
@@ -55,16 +64,11 @@ class AliDataModule(LightningDataModule):
             )
             preprocess = lambda x: convert_to_features(preprocess_fn(x))
 
-            if self.test_name == "":
-                data_files = {
-                    "train": str(self.train_path),
-                    "val": str(self.val_path),
-                    "test": str(self.test_path),
-                }
-            else:
-                data_files = {
-                    "test": str(self.test_path),
-                }
+            data_files = {
+                "train": str(self.train_path),
+                "val": str(self.val_path),
+                "test": str(self.test_path),
+            }
 
             datasets = load_dataset("parquet", data_files=data_files)
             self.datasets = datasets.map(
@@ -81,33 +85,33 @@ class AliDataModule(LightningDataModule):
         return DataLoader(
             dataset=self.datasets["train"],
             batch_size=self.hparams.batch_size,
-            shuffle=True,
             num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
             collate_fn=self.collate_fn,
             persistent_workers=self.hparams.num_workers > 0,
-            pin_memory=True,
+            shuffle=True,
         )
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
             dataset=self.datasets["val"],
             batch_size=self.hparams.batch_size,
-            shuffle=False,
             num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
             collate_fn=self.collate_fn,
             persistent_workers=self.hparams.num_workers > 0,
-            pin_memory=True,
+            shuffle=False,
         )
 
     def test_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
             dataset=self.datasets["test"],
             batch_size=self.hparams.batch_size,
-            shuffle=False,
             num_workers=self.hparams.num_workers,
+            pin_memory=self.hparams.pin_memory,
             collate_fn=self.collate_fn,
             persistent_workers=self.hparams.num_workers > 0,
-            pin_memory=True,
+            shuffle=False,
         )
 
     @staticmethod

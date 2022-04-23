@@ -7,25 +7,26 @@ from multiprocessing import Pool
 from pathlib import Path
 from string import Template
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 PROJECT_DIR = Path(__file__).parent.parent
-EXP_DIR = PROJECT_DIR / "logs" / "ali"
+EXP_DIR = PROJECT_DIR / "results" / "logs" / "ali"
 EXP_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_ARGS = {
     "config": "ali_tm",
     "cat": "all",
     "seed": 142,
-    "num_workers": 32,
-    "k": 10,
+    "test_name": "",
 }
 EXPT_TMP = Template(
     """{
   "data": {
-    "class_path": "src.AliDataModule",
+    "class_path": "src.datamodules.AliDataModule",
     "init_args": {
       "cat": "${cat}",
-      "num_workers": "${num_workers}",
-      "k": "${k}"
+      "test_name": "${test_name}",
+      "num_workers": 32
     }
   },
   "seed": "${seed}",
@@ -36,23 +37,14 @@ EXPTS = []
 SEEDS = [142, 123]
 
 for seed in SEEDS:
-    # for config in ["ali_tm", "ali_vm", "ali_mm"]:
-    for config in ["ali_tm"]:
+    for config in ["ali_tm", "ali_vm", "ali_mm"]:
         for cat in ["all", "clothing", "shoes", "accessories"]:
-            for k in [10, 20, 40, 80, 100]:
-                kwargs = {
-                    "cat": cat,
-                    "config": config,
-                    "seed": seed,
-                    "k": k,
-                }
-                EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwargs))
-
-os.environ["http_proxy"] = "http://127.0.0.1:7890"
-os.environ["https_proxy"] = "http://127.0.0.1:7890"
-os.environ["all_proxy"] = "socks5://127.0.0.1:7890"
-os.environ["no_proxy"] = "localhost,127.0.0.0/8,*.local"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            kwargs = {
+                "config": config,
+                "cat": cat,
+                "seed": seed,
+            }
+            EXPTS.append(EXPT_TMP.substitute(DEFAULT_ARGS, **kwargs))
 
 
 def argument_parser():
@@ -80,22 +72,25 @@ def run(exp_args, args):
     worker_id = int(multiprocessing.current_process().name.rsplit("-", 1)[1]) - 1
     gpu = args.gpus[worker_id % len(args.gpus)]
 
-    exp_name = f"{exp_args['config']}_{exp_args['data']['init_args']['cat']}"
+    exp_name = f"{exp_args['config']}_{exp_args['data']['init_args']['cat']}_{exp_args['seed']}"
 
-    outfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_out.log"
-    errfile = EXP_DIR / f"{exp_name}_{exp_args['seed']}_err.log"
+    outfile = EXP_DIR / f"{exp_name}_out.log"
+    errfile = EXP_DIR / f"{exp_name}_err.log"
 
     if args.fast_dev_run:
         cmd = f"""./run fit \\
+        --debug \\
         --config configs/{exp_args['config']}.yaml \\
         --seed_everything {exp_args['seed']} \\
         --trainer.gpus {gpu}, --trainer.fast_dev_run {args.fast_dev_run} \\
-        --data '{exp_args['data']}'"""
+        --data '{exp_args['data']}'
+        """
     else:
         cmd = f"""./run fit \\
         --config configs/{exp_args['config']}.yaml \\
+        --name {exp_name} \\
         --seed_everything {exp_args['seed']} \\
-        --trainer.gpus {gpu}, --trainer.default_root_dir results_ratio --trainer.max_epochs 30 \\
+        --trainer.gpus {gpu}, \\
         --data '{exp_args['data']}' \\
         >{outfile} 2>{errfile}
         """
