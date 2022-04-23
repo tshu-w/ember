@@ -1,68 +1,60 @@
-#!/usr/bin/env python
-
+import argparse
 import json
 import logging
-from collections import ChainMap
+import os
+from collections import ChainMap, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import shtab
-from pytorch_lightning.loggers import LightningLoggerBase, LoggerCollection
 from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities.cli import LightningArgumentParser, LightningCLI
-from rich import print
+from pytorch_lightning.utilities.metrics import metrics_to_scalars
 
 
 class LitCLI(LightningCLI):
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        ...
-
-    def modify_logger(self, logger: LightningLoggerBase, exp_name: str, version: str):
-        if exp_name and hasattr(logger, "_name"):
-            logger._name = exp_name
-
-        if version and hasattr(logger, "_version"):
-            logger._version = version
-
-    def before_run(self):
-        model_name = type(self.model).__name__
-        datamodule_name = type(self.datamodule).__name__ if self.datamodule else ""
-        exp_name = "_".join(filter(None, [model_name, datamodule_name]))
-
-        model_version = (
-            self.model.get_version() if hasattr(self.model, "get_version") else ""
-        )
-        datamodule_version = (
-            self.datamodule.get_version()
-            if hasattr(self.datamodule, "get_version")
-            else ""
-        )
-        seed = str(self._get(self.config, "seed_everything"))
-        timestramp = datetime.now().strftime("%m%d-%H%M%S")
-        version = "_".join(
-            filter(None, [model_version, datamodule_version, seed, timestramp])
-        ).replace("/", "-")
-        log_dir = (
-            f"{self.trainer.default_root_dir}/{exp_name.lower()}/{version.lower()}"
+        parser.add_argument("-n", "--name", default="none", help="Experiment name")
+        parser.add_argument(
+            "-d",
+            "--debug",
+            default=False,
+            action=argparse.BooleanOptionalAction,
+            help="Debug mode",
         )
 
-        print(f"Experiment: [bold]{exp_name}[/bold]")
-        print(f"Version:    [bold]{version}[/bold]")
-        print(f"Log Dir:    [bold]{log_dir}[/bold]")
+        for arg in ["num_labels", "task_name"]:
+            parser.link_arguments(
+                f"data.init_args.{arg}",
+                f"model.init_args.{arg}",
+                apply_on="instantiate",
+            )
 
-        if isinstance(self.trainer.logger, LoggerCollection):
-            for logger in self.trainer.logger:
-                self.modify_logger(logger, exp_name.lower(), version.lower())
-        else:
-            self.modify_logger(self.trainer.logger, exp_name.lower(), version.lower())
+    def before_instantiate_classes(self) -> None:
+        config = self.config[self.subcommand]
+        mode = "debug" if config.debug else self.subcommand
+        timestamp = datetime.now().strftime("%m-%dT%H%M%S")
 
-        if self.subcommand in ["validate", "test"]:
-            self.config_init[self.subcommand]["verbose"] = False
+        config.trainer.default_root_dir = os.path.join(
+            "results", mode, config.name, timestamp
+        )
 
-    before_fit = before_validate = before_test = before_run
+        if mode == "debug":
+            config.trainer.logger = None
 
-    def after_run(self):
+        logger = config.trainer.logger
+        assert logger != True, "should assign trainer.logger with the specific logger."
+        if logger:
+            loggers = logger if isinstance(logger, Iterable) else [logger]
+            for logger in loggers:
+                logger.init_args.save_dir = os.path.join(
+                    logger.init_args.get("save_dir", "results"), self.subcommand
+                )
+                logger.init_args.name = config.name
+                logger.init_args.version = timestamp
+
+    def after_run(self) -> None:
         results = {}
 
         if self.trainer.state.fn == TrainerFn.FITTING:
@@ -71,7 +63,7 @@ class LitCLI(LightningCLI):
                 and self.trainer.checkpoint_callback.best_model_path
             ):
                 ckpt_path = self.trainer.checkpoint_callback.best_model_path
-                # Disable useless logging
+                # inhibit disturbing logging
                 logging.getLogger("pytorch_lightning.utilities.distributed").setLevel(
                     logging.WARNING
                 )
@@ -84,7 +76,6 @@ class LitCLI(LightningCLI):
                     "model": self.model,
                     "datamodule": self.datamodule,
                     "ckpt_path": ckpt_path,
-                    "verbose": False,
                 }
                 has_val_loader = (
                     self.trainer._data_connector._val_dataloader_source.is_defined()
@@ -100,16 +91,14 @@ class LitCLI(LightningCLI):
 
                 results = dict(ChainMap(*val_results, *test_results))
         else:
-            results = self.trainer.logged_metrics
+            results = metrics_to_scalars(self.trainer.logged_metrics)
 
         if results:
             results_str = json.dumps(results, ensure_ascii=False, indent=2)
-            print(results_str)
 
-            if self.trainer.log_dir is not None:
-                metrics_file = Path(self.trainer.log_dir) / "metrics.json"
-                with metrics_file.open("w") as f:
-                    f.write(results_str)
+            metrics_file = Path(self.trainer.log_dir) / "metrics.json"
+            with metrics_file.open("w") as f:
+                f.write(results_str)
 
     after_fit = after_validate = after_test = after_run
 
@@ -120,6 +109,13 @@ class LitCLI(LightningCLI):
         subparser_kwargs: dict[str, Any],
     ) -> None:
         """Initialize and setup the parser, subcommands, and arguments."""
+        # move default_config_files to subparser_kwargs
+        if add_subcommands:
+            default_configs = main_kwargs.pop("default_config_files", None)
+            subparser_kwargs = defaultdict(dict, subparser_kwargs)
+            for subcmd in self.subcommands():
+                subparser_kwargs[subcmd]["default_config_files"] = default_configs
+
         self.parser = self.init_parser(**main_kwargs)
         shtab.add_argument_to(self.parser, ["-s", "--print-completion"])
 

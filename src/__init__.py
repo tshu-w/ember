@@ -1,2 +1,2 @@
-from .datamodules import *
-from .models import *
+import src.datamodules
+import src.models
