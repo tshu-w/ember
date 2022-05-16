@@ -1,0 +1,23 @@
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+torch >= 1.10.0
+pytorch-lightning >= 1.6.0
+jsonargparse[signatures] >= 4.5.0
+
+# deepmatcher requires torchtext between 0.9.0 and 0.11.0
+# see https://github.com/anhaidgroup/deepmatcher/issues/96
+torchtext < 0.12.0
+torchvision < 0.12.0
+
+transformers >= 4.16.0
+datasets >= 2.0.0
+
+shtab >= 1.5.0
+rich >= 12.0.0
+
+Pillow >= 8.0.0
+
+deepmatcher
+jieba
+
+wandb
+jupyterlab

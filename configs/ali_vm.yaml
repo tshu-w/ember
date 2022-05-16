@@ -1,0 +1,22 @@
+seed_everything: 142
+name: ali_visionmatcher
+trainer:
+  max_epochs: 30
+model:
+  class_path: src.models.vision_matcher.VisionMatcher
+  init_args:
+    model_name_or_path: google/vit-base-patch16-224
+    dropout: 0.1
+    learning_rate: 2.0e-05
+data:
+  class_path: src.datamodules.AliDataModule
+  init_args:
+    cat: all
+    columns:
+      - title
+    test_name: ""
+    train_ratio: null
+    test_ratio: null
+    batch_size: 32
+    num_workers: 16
+    pin_memory: true

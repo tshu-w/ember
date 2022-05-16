@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+
+from pytorch_lightning.utilities.cli import (
+    DATAMODULE_REGISTRY,
+    MODEL_REGISTRY,
+    _populate_registries,
+)
+
+from src.utils import LitCLI
+
+
+def main():
+    os.chdir(os.path.dirname(__file__))
+
+    _populate_registries(subclasses=True)
+    cli = LitCLI(
+        parser_kwargs={
+            "default_config_files": ["configs/presets/default.yaml"],
+            "epilog": f"""
+Availabed Models:      {list(MODEL_REGISTRY)}
+Availabed Datamodules: {list(DATAMODULE_REGISTRY)}
+            """,
+            "formatter_class": argparse.RawDescriptionHelpFormatter,
+        },
+    )
+
+
+if __name__ == "__main__":
+    main()
