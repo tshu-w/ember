@@ -1,57 +1,49 @@
-# Lightning-Template
-
-A clean and scalable template to structure ML paper-code the same so that work can easily be extended and replicated.
-
-### DELETE EVERYTHING ABOVE FOR YOUR PROJECT
-
----
-
 <div align="center">
 
-# Your Project Name
+# Ember
 
-[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://www.nature.com/articles/nature14539)
-[![Conference](http://img.shields.io/badge/NeurIPS-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
-[![Conference](http://img.shields.io/badge/ICLR-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
-[![Conference](http://img.shields.io/badge/AnyConference-year-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
-<!--
-ARXIV
-[![Paper](http://img.shields.io/badge/arxiv-math.co:1480.1111-B31B1B.svg)](https://www.nature.com/articles/nature14539)
--->
+[![Paper](http://img.shields.io/badge/arxiv-2205.05889-B31B1B.svg)](https://arxiv.org/abs/2205.05889)
+[![Conference](http://img.shields.io/badge/IJCAI-2022-4b44ce.svg)](https://ijcai-22.org)
 
-
-<!--
-Conference
--->
 </div>
 
 ## Description
-What it does
+Code and data for the paper:
+
+*Bridging the Gap between Reality and Ideality of Entity Matching: A Revisiting and Benchmark Re-Construction*
 
 ## How to run
 First, install dependencies
-```bash
+```console
 # clone project
-git clone https://github.com/YourGithubName/your-repository-name
-cd your-repository-name
+git clone https://github.com/tshu-w/ember
+cd ember
 
-# [OPTIONAL] create conda environment
-conda create -n env python=3.9
+# [SUGGESTED] use conda environment
+conda env create -n env -f environment.yml
 conda activate env
 
-# install requirements
+# [OPTIONAL] install requirements directly
 pip install -r requirements.txt
 ```
 
-Next, run experiments with the `run` script.
-```bash
-# fit with the demo config
-./run fit --config configs/demo.yaml
+Next, to obtain the main results of the paper:
+```console
+python scripts/run_ali.py --gpus 0 1 2 3
+python scripts/test_ali.py --gpus 0 1 2 3
+python scripts/run_dm_ali.py --gpus 0 1 2 3
+python scripts/test_dm_ali.py --gpus 0 1 2 3
+```
+
+You can also run experiments with the `run` script.
+```console
+# fit with the TextMatcher config
+./run fit --config configs/ali_tm.yaml
 # or specific command line arguments
-./run fit --model MNISTModel --data MNISTDataModule --data.batch_size 32 --trainer.gpus 0
+./run fit --model TextMatcher --data AliDataModule --data.batch_size 32 --trainer.gpus 0,
 
 # evaluate with the checkpoint
-./run test --config configs/demo.yaml --ckpt_path ckpt_path
+./run test --config configs/ali_tm.yaml --ckpt_path ckpt_path
 
 # get the script help
 ./run --help
@@ -60,10 +52,9 @@ Next, run experiments with the `run` script.
 
 ## Citation
 ```
-@article{YourName,
-  title={Your Title},
-  author={Your team},
-  journal={Location},
-  year={Year}
+@inproceedings{wang-2022-bridging-gap,
+  title={Bridging the Gap between Reality and Ideality of Entity Matching: A Revisiting and Benchmark Re-Construction},
+  author={Tianshu Wang and Hongyu Lin and Cheng Fu and Xianpei Han and Le Sun and Feiyu Xiong and Hui Chen and Minlong Lu and Xiuwen Zhu},
+  year={2022}
 }
 ```
