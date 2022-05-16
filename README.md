@@ -20,8 +20,8 @@ git clone https://github.com/tshu-w/ember
 cd ember
 
 # [SUGGESTED] use conda environment
-conda env create -n env -f environment.yml
-conda activate env
+conda env create -n ember -f environment.yaml
+conda activate ember
 
 # [OPTIONAL] install requirements directly
 pip install -r requirements.txt
