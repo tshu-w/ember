@@ -12,22 +12,23 @@ The filename explanation is as follow:
 
 ```
 .
-├── train.parquet       <- Training Set
-├── val.parquet         <- Validation Set
-├── test.parquet        <- Vanilla Test Set
-├── test_rl.parquet     <- Record Linking Test Set
-├── test_cfm.parquet    <- Cluster-focused Matching Test Set
-├── test_om.parquet     <- Open Matching Test Set
-├── test_i.parquet      <- Imbalanced Version
-├── test_irl.parquet    <- Same as above
-├── test_icfm.parquet   <- Same as above
-└── test_iom.parquet    <- Same as above
+├── datasets
+│   ├── all/clothing/shoes/accessories
+│   │   ├── train.parquet         <- Training Set
+│   │   ├── val.parquet           <- Validation Set
+│   │   ├── test.parquet          <- Vanilla Test Set
+│   │   ├── test_rl.parquet       <- Record Linking Test Set
+│   │   ├── test_cfm.parquet      <- Cluster-focused Matching Test Set
+│   │   ├── test_om.parquet       <- Open Matching Test Set
+│   │   ├── test_i.parquet        <- Imbalanced Version
+│   │   ├── test_irl.parquet      <- Same as above
+│   │   ├── test_icfm.parquet     <- Same as above
+│   │   └── test_iom.parquet      <- Same as above
 ```
 
 ## Field Description
 
-Each instance (record pair) in the above file consists of two records, distinguished by the suffixes "_left" and "_right", and the "label" field. Each record consists of seven fields, as explained below:
-
+Each record consists of seven fields, as explained below:
 ```
 id: Record ID
 title: Product Title
@@ -37,6 +38,8 @@ cate_name: Fine-grained Category
 pv_pairs: Product Attributes, which split by #;# and #:#, for example "color#:#red#;#year#:#2022"
 cluster_id: Cluster ID, record in the same cluster are considered to refer to the same product.
 ```
+
+Each instance (record pair) consists of two records, distinguished by the suffixes "_left" and "_right", and the "label" field.
 
 ## Statistics
 
