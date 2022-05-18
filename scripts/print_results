@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 from signal import SIG_DFL, SIGPIPE, signal
 
 signal(SIGPIPE, SIG_DFL)
@@ -18,15 +19,14 @@ def main(args: argparse.Namespace):
     keys = args.keys
 
     results_dict = {}
-    for root, _, files in os.walk(path):
-        if metrics_name in files:
-            full_name = os.path.join(root, metrics_name)
-            with open(full_name) as file_:
-                metrics = json.load(file_)
-            results_dict[os.path.basename(root)] = metrics
+    for f in path.rglob(metrics_name):
+        with open(f) as file_:
+            metrics = json.load(file_)
+        name = f.parents[0].relative_to(f.parents[2])
+        results_dict[name] = metrics
 
     sorted_keys = sorted(list(results_dict.keys()))
-    print(f"{os.path.basename(path)}, {', '.join(keys)}")
+    print(f"{path.name}, {', '.join(keys)}")
     for name in sorted_keys:
         results = results_dict[name]
         keys_to_print = (str(results.get(key, "N/A")) for key in keys)
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "path",
-        type=str,
+        type=Path,
         help="Path to recursively search for experiment directories.",
     )
     parser.add_argument(

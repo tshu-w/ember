@@ -35,6 +35,8 @@ python scripts/run_ali.py --gpus 0 1 2 3
 python scripts/test_ali.py --gpus 0 1 2 3
 python scripts/run_dm_ali.py --gpus 0 1 2 3
 python scripts/test_dm_ali.py --gpus 0 1 2 3
+
+python scripts/print_results results/test -k test/f1 test/prc test/rec
 ```
 
 You can also run experiments with the `run` script.
