@@ -313,8 +313,7 @@ def run(args):
         progress_style="log",
         return_all_metrics=True,
     )
-    for k, v in results.items():
-        results[k] = v.item() / 100
+    results = {f"test/{k}": v.item() / 100 for k, v in results.items()}
     results_str = json.dumps(results, ensure_ascii=False, indent=2)
 
     metrics_file = o_dir / "metrics.json"
