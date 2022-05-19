@@ -14,6 +14,9 @@ Code and data for the paper:
 
 *Bridging the Gap between Reality and Ideality of Entity Matching: A Revisiting and Benchmark Re-Construction*
 
+## Data
+Details of the released data can be found in the [REAME](./data/ali/README.md) of the data.
+
 ## How to run
 First, install dependencies
 ```console
