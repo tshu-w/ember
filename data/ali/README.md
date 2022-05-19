@@ -1,6 +1,8 @@
 # Constructed Benchmarks
 
-This directory holds the benchmarks we constructed, including four categories, four scenarios and corresponding imbalanced versions. For more information on this, please refer to the original [paper](https://arxiv.org/abs/2205.05889) and the following sections.
+This directory holds the benchmarks we constructed, including four categories, four scenarios and corresponding imbalanced versions. The packaged images can be downloaded from [here](https://1drv.ms/u/s!AlCpSo470WIyopk6X3cgTHPPmR6aPw) or using the [download script](../../scripts/download_images.sh). Since the whole corpus is too large, please contact us if you need it.
+
+For more information on this, please refer to the original [paper](https://arxiv.org/abs/2205.05889) and the following sections.
 
 ## Filename Explanation
 

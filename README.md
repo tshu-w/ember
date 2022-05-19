@@ -31,6 +31,8 @@ pip install -r requirements.txt
 
 Next, to obtain the main results of the paper:
 ```console
+bash scripts/download_images.sh
+
 python scripts/run_ali.py --gpus 0 1 2 3
 python scripts/test_ali.py --gpus 0 1 2 3
 python scripts/run_dm_ali.py --gpus 0 1 2 3
