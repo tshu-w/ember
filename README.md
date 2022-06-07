@@ -28,7 +28,7 @@ cd ember
 conda env create -n ember -f environment.yaml
 conda activate ember
 
-# [OPTIONAL] install requirements directly
+# [ALTERNATIVE] install requirements directly
 pip install -r requirements.txt
 ```
 
