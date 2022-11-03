@@ -4,7 +4,7 @@
 
 <p>
 <a href="https://arxiv.org/abs/2205.05889"><img src="http://img.shields.io/badge/arxiv-2205.05889-B31B1B.svg" alt="Arxiv" /></a>
-<a href="https://ijcai-22.org"><img src="http://img.shields.io/badge/IJCAI-2022-4b44ce.svg" alt="Conference" /></a>
+<a href="https://www.ijcai.org/proceedings/2022/0552.pdf"><img src="http://img.shields.io/badge/IJCAI-2022-4b44ce.svg" alt="Conference" /></a>
 </p>
 
 </div>
