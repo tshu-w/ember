@@ -3,8 +3,8 @@
 <h2 id="bridging-the-gap-between-reality-and-ideality-of-entity-matching-a-revisiting-and-benchmark-re-construction">Bridging the Gap between Reality and Ideality of Entity Matching:<br/>A Revisiting and Benchmark Re-Construction</h2>
 
 <p>
-<a href="https://arxiv.org/abs/2205.05889"><img src="http://img.shields.io/badge/arxiv-2205.05889-B31B1B.svg" alt="Arxiv" /></a>
-<a href="https://www.ijcai.org/proceedings/2022/0552.pdf"><img src="http://img.shields.io/badge/IJCAI-2022-4b44ce.svg" alt="Conference" /></a>
+<a href="https://arxiv.org/abs/2205.05889"><img src="http://img.shields.io/badge/arXiv-2205.05889-B31B1B.svg?style=flat-square" alt="Arxiv" /></a>
+<a href="https://www.ijcai.org/proceedings/2022/0552.pdf"><img src="http://img.shields.io/badge/IJCAI-2022-4b44ce.svg?style=flat-square" alt="Conference" /></a>
 </p>
 
 </div>
