@@ -21,8 +21,8 @@ Details of the released data can be found in the [REAME](./data/ali/README.md) o
 First, install dependencies
 ```console
 # clone project
-git clone https://github.com/tshu-w/ember
-cd ember
+git clone https://github.com/tshu-w/EMBer
+cd EMBer
 
 # [SUGGESTED] use conda environment
 conda env create -n ember -f environment.yaml
